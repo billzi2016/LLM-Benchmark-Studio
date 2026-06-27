@@ -163,6 +163,8 @@ data/benchmark_datasets/
 - 不做 batch。
 - 避免 API 限流、Ollama 单并发阻塞、provider 崩溃。
 - 每个任务由 Celery worker 消费。
+- 如果用户选择多个模型和多个数据集，Django 创建任务时必须按模型分组排序：同一个模型的所有 dataset/sample 任务排在一起，再进入下一个模型。
+- 任务排序字段写入 PostgreSQL，供 Celery 和 Vue 共同使用。
 
 Prompt 规则：
 

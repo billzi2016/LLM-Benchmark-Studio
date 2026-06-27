@@ -1,0 +1,43 @@
+{
+  "description": "Multiple local model candidates. The server loads exactly one selected model per process.",
+  "models": [
+    {
+      "id": "qwen2_5_7b_lora_math",
+      "served_model_name": "qwen2.5-7b-lora-math",
+      "base_model": "/models/Qwen2.5-7B-Instruct",
+      "lora_adapter": "/loras/qwen2.5-7b-math-lora",
+      "activate": true,
+      "device_map": "auto",
+      "torch_dtype": "auto",
+      "metadata": {
+        "task": "math benchmark",
+        "note": "Only loaded when --model-id qwen2_5_7b_lora_math is selected."
+      }
+    },
+    {
+      "id": "qwen2_5_7b_base",
+      "served_model_name": "qwen2.5-7b-base",
+      "base_model": "/models/Qwen2.5-7B-Instruct",
+      "lora_adapter": null,
+      "activate": true,
+      "device_map": "auto",
+      "torch_dtype": "auto",
+      "metadata": {
+        "task": "general benchmark"
+      }
+    },
+    {
+      "id": "llama3_8b_lora_domain",
+      "served_model_name": "llama3-8b-lora-domain",
+      "base_model": "/models/Meta-Llama-3-8B-Instruct",
+      "lora_adapter": "/loras/llama3-8b-domain-lora",
+      "activate": false,
+      "device_map": "auto",
+      "torch_dtype": "auto",
+      "metadata": {
+        "task": "domain benchmark",
+        "note": "Inactive entries cannot be loaded until activate=true."
+      }
+    }
+  ]
+}

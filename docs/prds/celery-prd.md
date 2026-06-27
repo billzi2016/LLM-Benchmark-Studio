@@ -20,6 +20,8 @@ Broker 使用 RabbitMQ，任务状态和结果写入 PostgreSQL，进度通过 D
 - 任务状态更新、provider 调用、prompt 构造、错误处理必须复用共享 service。
 - 新增任务类型必须通过 task registry 或清晰的 service 边界扩展。
 - 不重复实现 provider timeout、重试、日志和 response normalization。
+- Benchmark 队列默认按模型分组执行：同一个模型先跑完选定 dataset/sample，再切换下一个模型。
+- 不允许默认按 dataset 交错模型执行，因为本地模型反复 load 成本很高，HDD 环境尤其明显。
 
 原则上不自己造轮子。优先使用成熟套件：
 
@@ -126,6 +128,39 @@ TRANSLATE_MODEL=gpt-oss:20b
 - 同步到 PostgreSQL `llm_models`。
 
 ## 4. 任务控制
+
+## 3.7 Benchmark 调度顺序
+
+默认调度顺序：
+
+```text
+for model in selected_models:
+  load or warm model once
+  for dataset in selected_datasets:
+    for sample in selected_samples:
+      run benchmark(model, dataset, sample)
+  release or keep warm according to provider policy
+```
+
+原因：
+
+- Ollama、vLLM、SGLang、本地 Transformers/LoRA 服务都可能有较高模型加载成本。
+- 如果磁盘是 HDD，频繁切换模型会让测评时间大幅增加。
+- 同一模型连续执行可以最大化模型驻留、KV/cache 预热和磁盘顺序读取收益。
+
+任务表需要支持：
+
+- `model_id`
+- `dataset_id`
+- `sample_id`
+- `model_group_order`
+- `dataset_order`
+- `sample_order`
+- `run_group_id`
+
+Task Queue 展示时也应该按 `run_group_id -> model_group_order -> dataset_order -> sample_order` 排序。
+
+如果用户手动插入单个高优先级任务，可以通过 `priority` 插队，但默认批量生成的 benchmark 任务必须按模型分组。
 
 ### 4.1 Play
 

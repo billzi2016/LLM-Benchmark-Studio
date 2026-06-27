@@ -1,0 +1,67 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-llm_benchmark_studio}
+      POSTGRES_USER: ${POSTGRES_USER:-llm_benchmark}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-llm_benchmark} -d ${POSTGRES_DB:-llm_benchmark_studio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    command: python manage.py runserver 0.0.0.0:6325
+    working_dir: /app/backend
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      POSTGRES_HOST: postgres
+      RABBITMQ_HOST: rabbitmq
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://localhost:11434}
+      VLLM_HOST: ${VLLM_HOST:-localhost}
+      VLLM_PORT: ${VLLM_PORT:-8000}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://localhost:8000/v1}
+      SGLANG_HOST: ${SGLANG_HOST:-localhost}
+      SGLANG_PORT: ${SGLANG_PORT:-30000}
+      SGLANG_BASE_URL: ${SGLANG_BASE_URL:-http://localhost:30000/v1}
+      OPENAI_COMPATIBLE_HOST: ${OPENAI_COMPATIBLE_HOST:-localhost}
+      OPENAI_COMPATIBLE_PORT: ${OPENAI_COMPATIBLE_PORT:-6328}
+      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-http://localhost:6328/v1}
+    ports:
+      - "${DJANGO_PORT:-6325}:6325"
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  rabbitmq_data:

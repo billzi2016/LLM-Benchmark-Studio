@@ -217,6 +217,10 @@ PostgreSQL 是 LLM Benchmark Studio 的主存储。所有 dataset 元数据、sa
 - `model_id`
 - `benchmark_run_id`
 - `target_language`
+- `run_group_id`
+- `model_group_order`
+- `dataset_order`
+- `sample_order`
 - `progress_current`
 - `progress_total`
 - `progress_percent`
@@ -295,6 +299,7 @@ CREATE INDEX idx_judge_run ON judge_results(benchmark_run_id);
 CREATE INDEX idx_regex_judge_run ON regex_judge_results(benchmark_run_id);
 CREATE INDEX idx_tasks_status_type ON task_queue(status, task_type);
 CREATE INDEX idx_tasks_created_at ON task_queue(created_at);
+CREATE INDEX idx_tasks_model_group_order ON task_queue(run_group_id, model_group_order, dataset_order, sample_order);
 CREATE INDEX idx_provider_logs_provider_model ON provider_call_logs(provider, model_name);
 ```
 

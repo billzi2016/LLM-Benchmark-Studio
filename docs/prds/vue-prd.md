@@ -202,6 +202,9 @@ Task Queue 展示：
 - 前端不能批量提交任务。
 - 如果已有 running 任务，新的任务可以进入 pending，但不能自动并发执行。
 - 进度条通过 SSE 滚动更新。
+- Benchmark 队列默认按模型分组排序：同一个模型跑完选定数据集后，再切换下一个模型，避免本地模型反复加载。
+- Vue Task Queue 必须按 `run_group_id -> model_group_order -> dataset_order -> sample_order` 排序展示，不能按创建时间把不同模型交错在一起。
+- 前端创建多模型测评计划时，也必须先按模型生成任务，再按 dataset/sample 生成，和后端排序规则一致。
 
 ## 6.1 结果导出
 
@@ -332,6 +335,7 @@ frontend/
     utils/
       format.ts
       sse.ts
+      taskOrdering.ts
   tests/
     unit/
       taskStore.test.ts
