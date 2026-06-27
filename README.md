@@ -234,3 +234,108 @@ Expected behavior:
 - Backend packages all selected or all available result JSON files into a compressed ZIP.
 - Browser downloads the ZIP.
 - Exported JSON includes benchmark response, judge result, regex judge result, model metadata, dataset metadata, language, timestamps, and task metadata.
+
+## Docker Compose
+
+`docker-compose.yml` does not start PostgreSQL. It uses an already-running host PostgreSQL by default:
+
+```env
+POSTGRES_HOST=host.docker.internal
+POSTGRES_PORT=5432
+```
+
+If PostgreSQL is not running, open another terminal and start the host PostgreSQL manually. For Homebrew PostgreSQL on macOS:
+
+```bash
+brew services start postgresql@16
+```
+
+For a temporary foreground process, run PostgreSQL with your local data directory. Apple Silicon Homebrew commonly uses:
+
+```bash
+postgres -D /opt/homebrew/var/postgresql@16
+```
+
+Intel Mac Homebrew commonly uses:
+
+```bash
+postgres -D /usr/local/var/postgresql@16
+```
+
+Check readiness:
+
+```bash
+pg_isready -h 127.0.0.1 -p 5432
+```
+
+For Docker backend containers to connect to host PostgreSQL, keep:
+
+```env
+POSTGRES_HOST=host.docker.internal
+POSTGRES_PORT=5432
+```
+
+Start the normal local stack:
+
+```bash
+docker compose up --build backend rabbitmq frontend
+```
+
+Run it in the background:
+
+```bash
+docker compose up --build -d backend rabbitmq frontend
+```
+
+Open:
+
+```text
+Frontend: http://localhost:6332
+Backend:  http://localhost:6331/api/system/status
+RabbitMQ: http://localhost:15672
+```
+
+Stop services:
+
+```bash
+docker compose down
+```
+
+If Compose reports an old PostgreSQL orphan container, for example `llm-benchmark-studio-postgres-1`, clean it up:
+
+```bash
+docker compose down --remove-orphans
+```
+
+## Port Cleanup
+
+Check what is listening on a port, for example `6325`:
+
+```bash
+lsof -nP -iTCP:6325 -sTCP:LISTEN
+```
+
+Release the port directly:
+
+```bash
+kill $(lsof -tiTCP:6325 -sTCP:LISTEN)
+```
+
+Force kill only if the normal signal does not stop it:
+
+```bash
+kill -9 $(lsof -tiTCP:6325 -sTCP:LISTEN)
+```
+
+For another port, replace `6325` with the target port:
+
+```bash
+kill $(lsof -tiTCP:8000 -sTCP:LISTEN)
+```
+
+If Docker owns the port, stop the container instead:
+
+```bash
+docker ps --format '{{.ID}} {{.Names}} {{.Ports}}'
+docker stop container-name
+```

@@ -31,20 +31,51 @@ OPENAI_COMPATIBLE_API_KEY=
 
 ## 安装依赖
 
-在项目根目录安装：
+这部分不由 `docker compose` 自动安装，也不在 backend Docker 镜像里安装。
+
+原因是 `torch`、Transformers、LoRA 依赖和机器硬件强相关。如果无脑写进根 `requirements.txt` 或 compose，macOS 可能错误拉 CUDA，Linux CPU 环境也可能下载几百 MB 甚至 GB 的 CUDA 包。
+
+先手动安装轻量 API/runtime 依赖：
 
 ```bash
-pip install -r requirements.txt
+pip install -r local-transformers-openai-api/requirements.txt
 ```
 
-依赖包含：
+然后检测当前机器：
+
+```bash
+python local-transformers-openai-api/check_environment.py
+```
+
+根据脚本输出单独安装 `torch`。
+
+macOS / Apple Silicon 不要安装 CUDA wheel，通常使用：
+
+```bash
+pip install torch
+```
+
+Linux 没有 NVIDIA GPU 时，用 CPU-only wheel，避免下载 CUDA 包：
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+Linux 有 NVIDIA GPU 时，再按 CUDA 版本安装对应 PyTorch wheel，例如：
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cu124
+```
+
+轻量依赖包含：
 
 - fastapi
 - uvicorn
 - transformers
 - accelerate
 - peft
-- torch
+
+`torch` 必须手动按环境安装。
 
 ## 直接加载一个模型
 

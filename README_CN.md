@@ -11,7 +11,13 @@ LLM Benchmark Studio 是一个本地优先的 LLM 测评系统，规划由五部
 当前后端默认端口是：
 
 ```text
-6325
+6331
+```
+
+当前前端默认端口是：
+
+```text
+6332
 ```
 
 ## 目录结构
@@ -20,7 +26,7 @@ LLM Benchmark Studio 是一个本地优先的 LLM 测评系统，规划由五部
 backend/                 Django 后端
 data/                    数据、模型列表、语言列表、下载和解析脚本
 docs/prds/               PRD 和 JSON 格式设计文档
-docker-compose.yml       PostgreSQL、RabbitMQ、Django backend 编排
+docker-compose.yml       RabbitMQ、Django backend、Vue frontend 编排
 Dockerfile               Django backend 镜像
 requirements.txt         Python 依赖
 pyproject.toml           Python 项目和测试配置
@@ -36,22 +42,61 @@ cp .env.example .env
 
 然后按本机情况修改 `.env`。`.env` 里可能包含数据库密码和 API key，不要提交到 git。
 
+`docker-compose.yml` 不启动 PostgreSQL。默认使用你本机已经运行的 PostgreSQL：
+
+```env
+POSTGRES_HOST=host.docker.internal
+POSTGRES_PORT=5432
+```
+
+如果 PostgreSQL 没启动，另开一个终端手动启动本机 PostgreSQL。Homebrew 安装的 macOS PostgreSQL 通常可以用：
+
+```bash
+brew services start postgresql@16
+```
+
+如果要前台临时启动，可以按你的本机数据目录执行。Apple Silicon Homebrew 常见路径：
+
+```bash
+postgres -D /opt/homebrew/var/postgresql@16
+```
+
+Intel Mac Homebrew 常见路径：
+
+```bash
+postgres -D /usr/local/var/postgresql@16
+```
+
+确认 PostgreSQL 是否可用：
+
+```bash
+pg_isready -h 127.0.0.1 -p 5432
+```
+
+Django 容器连接本机 PostgreSQL 时，`.env` 保持：
+
+```env
+POSTGRES_HOST=host.docker.internal
+POSTGRES_PORT=5432
+```
+
 在项目根目录运行：
 
 ```bash
-docker compose up --build
+docker compose up --build backend rabbitmq frontend
 ```
 
 后台运行：
 
 ```bash
-docker compose up --build -d
+docker compose up --build -d backend rabbitmq frontend
 ```
 
 启动后访问：
 
 ```text
-http://localhost:6325/api/system/status
+前端: http://localhost:6332
+后端: http://localhost:6331/api/system/status
 ```
 
 RabbitMQ 管理页面：
@@ -74,6 +119,12 @@ guest / guest
 docker compose down
 ```
 
+如果 compose 提示旧 PostgreSQL orphan 容器，例如 `llm-benchmark-studio-postgres-1`，清理旧容器：
+
+```bash
+docker compose down --remove-orphans
+```
+
 停止服务并删除 PostgreSQL / RabbitMQ 数据卷：
 
 ```bash
@@ -84,7 +135,7 @@ docker compose down -v
 
 ```bash
 docker compose logs -f backend
-docker compose logs -f postgres
+docker compose logs -f frontend
 docker compose logs -f rabbitmq
 ```
 
@@ -92,6 +143,44 @@ docker compose logs -f rabbitmq
 
 ```bash
 docker compose restart backend
+```
+
+## 端口占用处理
+
+如果某个端口被旧进程占用，比如 `6325`：
+
+```bash
+lsof -nP -iTCP:6325 -sTCP:LISTEN
+```
+
+直接按端口释放：
+
+```bash
+kill $(lsof -tiTCP:6325 -sTCP:LISTEN)
+```
+
+如果普通 `kill` 没停掉，再强制释放：
+
+```bash
+kill -9 $(lsof -tiTCP:6325 -sTCP:LISTEN)
+```
+
+如果要释放 `8000`，把命令里的 `6325` 换成 `8000`：
+
+```bash
+kill $(lsof -tiTCP:8000 -sTCP:LISTEN)
+```
+
+如果端口是 Docker 容器占用，先查容器：
+
+```bash
+docker ps --format '{{.ID}} {{.Names}} {{.Ports}}'
+```
+
+然后停止对应容器：
+
+```bash
+docker stop 容器名
 ```
 
 ## 本地运行 Django
@@ -106,13 +195,13 @@ pip install -r requirements.txt
 
 ```bash
 cd backend
-python manage.py runserver 6325
+python manage.py runserver 6331
 ```
 
 访问：
 
 ```text
-http://localhost:6325/api/system/status
+http://localhost:6331/api/system/status
 ```
 
 ## 本地运行 Vue
@@ -134,13 +223,13 @@ pnpm --dir frontend dev
 前端默认地址：
 
 ```text
-http://localhost:5173
+http://localhost:6332
 ```
 
 前端会通过 Vite proxy 调用 Django：
 
 ```text
-http://localhost:6325/api
+http://localhost:6331/api
 ```
 
 运行前端测试：
@@ -329,6 +418,17 @@ OPENAI_COMPATIBLE_API_KEY=
 ```text
 local-transformers-openai-api/
 ```
+
+这个本地 Transformers/LoRA 服务不由 `docker compose` 自动安装。`torch`、Transformers、PEFT 需要手动装，避免 macOS 或 CPU-only 机器误下载 CUDA 包。
+
+先执行：
+
+```bash
+pip install -r local-transformers-openai-api/requirements.txt
+python local-transformers-openai-api/check_environment.py
+```
+
+然后按检测结果安装 `torch`。
 
 这个服务支持一个 registry 里配置多个 base model / LoRA adapter，但每个进程一次只 load 一个模型，避免显存被多个模型同时占满：
 

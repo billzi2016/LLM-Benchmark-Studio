@@ -26,7 +26,25 @@ OPENAI_COMPATIBLE_BASE_URL=http://localhost:6328/v1
 OPENAI_COMPATIBLE_API_KEY=
 ```
 
-Run:
+## Manual Install
+
+This service is not installed by `docker compose` and is not part of the backend Docker image.
+
+Install the lightweight API/runtime dependencies manually:
+
+```bash
+pip install -r local-transformers-openai-api/requirements.txt
+```
+
+Then check your platform before installing PyTorch:
+
+```bash
+python local-transformers-openai-api/check_environment.py
+```
+
+Install `torch` using the command printed by the environment check. Do not install CUDA wheels on macOS. On Linux without NVIDIA GPU, use the CPU-only PyTorch wheel.
+
+## Run
 
 ```bash
 python local-transformers-openai-api/openai_api_server.py \
