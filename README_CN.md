@@ -71,6 +71,12 @@ Swagger: http://localhost:6341/api/docs
 OpenAPI JSON: http://localhost:6341/api/openapi.json
 ```
 
+backend 容器启动时会自动执行数据库迁移。如果需要手动重新执行迁移：
+
+```bash
+docker compose exec backend python manage.py migrate
+```
+
 RabbitMQ 管理页面：
 
 ```text

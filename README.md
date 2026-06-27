@@ -267,6 +267,12 @@ OpenAPI:  http://localhost:6341/api/openapi.json
 RabbitMQ: http://localhost:15672
 ```
 
+The backend container runs database migrations automatically on startup. To run migrations manually:
+
+```bash
+docker compose exec backend python manage.py migrate
+```
+
 PostgreSQL data is persisted inside the current project directory:
 
 ```text
