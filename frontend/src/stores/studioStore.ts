@@ -3,6 +3,24 @@ import { defineStore } from 'pinia'
 import { fetchDatasets, fetchLanguages, fetchModels, fetchProviders, fetchSystemStatus } from '../api/studio'
 import type { DatasetSummary, Language, LlmModel, ProviderInfo, StudioTask, SystemStatus } from '../types/studio'
 
+function isGenerationModel(model: LlmModel): boolean {
+  const modelType = String(model.metadata.type ?? 'generation').toLowerCase()
+  const modelRole = String(model.metadata.role ?? '').toLowerCase()
+  const modality = String(model.metadata.modality ?? 'text').toLowerCase()
+  const name = model.name.toLowerCase()
+  const family = model.family.toLowerCase()
+  const blockedTypes = new Set(['embedding', 'translation', 'rerank', 'reranker', 'classifier'])
+  const blockedRoles = new Set(['translation'])
+  const blockedModalities = new Set(['vision', 'ocr', 'audio', 'image'])
+  const blockedTerms = ['embed', 'translate', 'coder', 'vision', 'ocr', 'rerank']
+  return (
+    !blockedTypes.has(modelType) &&
+    !blockedRoles.has(modelRole) &&
+    !blockedModalities.has(modality) &&
+    !blockedTerms.some((term) => name.includes(term) || family.includes(term))
+  )
+}
+
 export const useStudioStore = defineStore('studio', {
   state: () => ({
     systemStatus: null as SystemStatus | null,
@@ -36,7 +54,7 @@ export const useStudioStore = defineStore('studio', {
           this.providers = providers.value
         }
         if (models.status === 'fulfilled') {
-          this.models = models.value
+          this.models = models.value.filter(isGenerationModel)
         }
         if (datasets.status === 'fulfilled') {
           this.datasets = datasets.value

@@ -7,7 +7,7 @@ from typing import Any
 from apps.datasets.catalog import scan_datasets
 from apps.datasets.languages import load_languages
 from apps.llms.providers import get_provider
-from apps.llms.registry import load_model_registry
+from apps.llms.registry import generation_models, load_model_registry
 from django.db import connection
 
 
@@ -77,7 +77,7 @@ def check_providers(settings: Any) -> list[dict[str, Any]]:
 
 
 def build_system_status(settings: Any) -> dict[str, Any]:
-    models = load_model_registry(settings.LLM_MODEL_NAMES_PATH)
+    models = generation_models(load_model_registry(settings.LLM_MODEL_NAMES_PATH))
     languages = load_languages(settings.LANGUAGES_PATH)
     datasets = scan_datasets(settings.BENCHMARK_DATASETS_DIR)
     services = [
