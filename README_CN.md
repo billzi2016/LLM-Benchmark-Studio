@@ -97,6 +97,8 @@ docker compose up --build -d backend rabbitmq frontend
 ```text
 前端: http://localhost:6332
 后端: http://localhost:6331/api/system/status
+Swagger: http://localhost:6331/api/docs
+OpenAPI JSON: http://localhost:6331/api/openapi.json
 ```
 
 RabbitMQ 管理页面：
@@ -445,6 +447,8 @@ python local-transformers-openai-api/openai_api_server.py \
 ## 常用 API
 
 ```text
+GET  /api/docs
+GET  /api/openapi.json
 GET  /api/system/status
 GET  /api/models
 GET  /api/languages

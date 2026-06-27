@@ -292,6 +292,8 @@ Open:
 ```text
 Frontend: http://localhost:6332
 Backend:  http://localhost:6331/api/system/status
+Swagger:  http://localhost:6331/api/docs
+OpenAPI:  http://localhost:6331/api/openapi.json
 RabbitMQ: http://localhost:15672
 ```
 
