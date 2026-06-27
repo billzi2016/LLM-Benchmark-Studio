@@ -1,0 +1,144 @@
+[
+  {
+    "code": "en",
+    "name": "English",
+    "native_name": "English",
+    "activate": true,
+    "metadata": {
+      "default_source_language": true
+    }
+  },
+  {
+    "code": "zh-CN",
+    "name": "Chinese Simplified",
+    "native_name": "简体中文",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "zh-TW",
+    "name": "Chinese Traditional",
+    "native_name": "繁體中文",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "fr",
+    "name": "French",
+    "native_name": "Français",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "de",
+    "name": "German",
+    "native_name": "Deutsch",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "es",
+    "name": "Spanish",
+    "native_name": "Español",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "it",
+    "name": "Italian",
+    "native_name": "Italiano",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "pt",
+    "name": "Portuguese",
+    "native_name": "Português",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "ja",
+    "name": "Japanese",
+    "native_name": "日本語",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "ko",
+    "name": "Korean",
+    "native_name": "한국어",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "ar",
+    "name": "Arabic",
+    "native_name": "العربية",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "hi",
+    "name": "Hindi",
+    "native_name": "हिन्दी",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "ru",
+    "name": "Russian",
+    "native_name": "Русский",
+    "activate": true,
+    "metadata": {}
+  },
+  {
+    "code": "nl",
+    "name": "Dutch",
+    "native_name": "Nederlands",
+    "activate": false,
+    "metadata": {}
+  },
+  {
+    "code": "sv",
+    "name": "Swedish",
+    "native_name": "Svenska",
+    "activate": false,
+    "metadata": {}
+  },
+  {
+    "code": "pl",
+    "name": "Polish",
+    "native_name": "Polski",
+    "activate": false,
+    "metadata": {}
+  },
+  {
+    "code": "tr",
+    "name": "Turkish",
+    "native_name": "Türkçe",
+    "activate": false,
+    "metadata": {}
+  },
+  {
+    "code": "vi",
+    "name": "Vietnamese",
+    "native_name": "Tiếng Việt",
+    "activate": false,
+    "metadata": {}
+  },
+  {
+    "code": "th",
+    "name": "Thai",
+    "native_name": "ไทย",
+    "activate": false,
+    "metadata": {}
+  },
+  {
+    "code": "id",
+    "name": "Indonesian",
+    "native_name": "Bahasa Indonesia",
+    "activate": false,
+    "metadata": {}
+  }
+]

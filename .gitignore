@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Local environment
+.env.local
+.env.*.local
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Frontend
+node_modules/
+dist/
+coverage/
+
+# Django
+*.sqlite3
+staticfiles/
+media/
+
+# Benchmark data
+data/benchmark_datasets/raw/*
+data/benchmark_datasets/*.json
+!data/benchmark_datasets/raw/.gitkeep
+!data/benchmark_datasets/.gitkeep
+
+# Logs and exports
+*.log
+logs/
+exports/

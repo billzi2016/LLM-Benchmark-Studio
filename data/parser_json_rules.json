@@ -1,0 +1,318 @@
+{
+  "format_version": "1.0",
+  "purpose": "Rules for converting raw benchmark datasets into LLM Benchmark Studio normalized JSON. Each rule defines useful fields, ignored fields, task type, answer format, and the exact benchmark prompt style.",
+  "global_output_schema": {
+    "dataset_level_fields": [
+      "dataset_name",
+      "subset",
+      "source_language",
+      "activate",
+      "samples",
+      "metadata"
+    ],
+    "sample_level_fields": [
+      "sample_id",
+      "question",
+      "choices",
+      "answer",
+      "language",
+      "activate",
+      "metadata"
+    ],
+    "filtered_by_default": [
+      "raw split bookkeeping fields",
+      "unused URLs",
+      "unused source text not needed to answer",
+      "duplicated answer labels",
+      "dataset-specific rendering fields",
+      "large unused explanation fields unless needed for gold answer"
+    ]
+  },
+  "prompt_contracts": {
+    "multiple_choice": "The model must return only one uppercase option letter from the listed choices. No explanation, no markdown, no punctuation, no extra text.",
+    "binary_choice": "The model must return only A or B. No explanation, no markdown, no punctuation, no extra text.",
+    "numeric_short_answer": "The model must return only the final number or short expression. No reasoning, no units unless the question explicitly requires units.",
+    "free_form_short_answer": "The model must return only the shortest final answer required by the problem. No reasoning and no surrounding sentence."
+  },
+  "datasets": [
+    {
+      "dataset_key": "mmlu",
+      "dataset_name": "MMLU",
+      "task_type": "multiple_choice",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "cais/mmlu",
+        "hf_config": "all",
+        "split": "test"
+      },
+      "field_mapping": {
+        "question": "question",
+        "choices": "choices[] mapped to A/B/C/D",
+        "answer": "answer integer index mapped to A/B/C/D"
+      },
+      "metadata_keep_fields": [
+        "subject"
+      ],
+      "ignored_fields": [
+        "dev examples",
+        "auxiliary split bookkeeping"
+      ],
+      "answer_format": {
+        "type": "single_option_letter",
+        "valid_values": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ]
+      },
+      "prompt_template": "You are answering a benchmark multiple-choice question. Read the question and choices carefully. Return only the single correct option letter: A, B, C, or D. Do not explain. Do not include reasoning. Do not include punctuation. Question:\\n{question}\\n\\nChoices:\\n{choices}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "mmlu_pro",
+      "dataset_name": "MMLU-Pro",
+      "task_type": "multiple_choice",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "TIGER-Lab/MMLU-Pro",
+        "hf_config": null,
+        "split": "test"
+      },
+      "field_mapping": {
+        "question": "question",
+        "choices": "options[] or choices[] mapped to A/B/C/...",
+        "answer": "answer uppercase option letter"
+      },
+      "metadata_keep_fields": [
+        "category",
+        "src"
+      ],
+      "ignored_fields": [
+        "cot_content",
+        "explanation",
+        "irrelevant source bookkeeping"
+      ],
+      "answer_format": {
+        "type": "single_option_letter",
+        "valid_values": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J"
+        ]
+      },
+      "prompt_template": "You are answering a difficult benchmark multiple-choice question. Some questions may have more than four choices. Return only the single correct option letter from the provided choices. Do not explain. Do not include reasoning. Do not include punctuation. Question:\\n{question}\\n\\nChoices:\\n{choices}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "arc_challenge",
+      "dataset_name": "ARC-Challenge",
+      "task_type": "multiple_choice",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "allenai/ai2_arc",
+        "hf_config": "ARC-Challenge",
+        "split": "test"
+      },
+      "field_mapping": {
+        "question": "question",
+        "choices": "choices.label[] + choices.text[]",
+        "answer": "answerKey"
+      },
+      "metadata_keep_fields": [
+        "id"
+      ],
+      "ignored_fields": [
+        "unused source annotations"
+      ],
+      "answer_format": {
+        "type": "single_option_letter",
+        "valid_values_source": "choices.label"
+      },
+      "prompt_template": "You are answering a science multiple-choice question. Choose exactly one option from the provided labels. Return only the option label. Do not explain. Do not include reasoning. Question:\\n{question}\\n\\nChoices:\\n{choices}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "hellaswag",
+      "dataset_name": "HellaSwag",
+      "task_type": "multiple_choice_completion",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "Rowan/hellaswag",
+        "hf_config": null,
+        "split": "validation"
+      },
+      "field_mapping": {
+        "question": "ctx",
+        "choices": "endings[] mapped to A/B/C/D",
+        "answer": "label integer index mapped to A/B/C/D"
+      },
+      "metadata_keep_fields": [
+        "activity_label",
+        "source_id"
+      ],
+      "ignored_fields": [
+        "ctx_a",
+        "ctx_b",
+        "split",
+        "split_type",
+        "ind",
+        "label notes"
+      ],
+      "answer_format": {
+        "type": "single_option_letter",
+        "valid_values": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ]
+      },
+      "prompt_template": "You are completing a short scenario. Pick the ending that best and most naturally completes the context. Return only A, B, C, or D. Do not explain. Do not include reasoning. Context:\\n{question}\\n\\nEndings:\\n{choices}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "truthfulqa",
+      "dataset_name": "TruthfulQA",
+      "task_type": "multiple_choice_truthfulness",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "truthfulqa/truthful_qa",
+        "hf_config": "multiple_choice",
+        "split": "validation"
+      },
+      "field_mapping": {
+        "question": "question",
+        "choices": "mc1_targets.choices preferred, fallback mc2_targets.choices",
+        "answer": "index where mc1_targets.labels or mc2_targets.labels equals 1"
+      },
+      "metadata_keep_fields": [
+        "category"
+      ],
+      "ignored_fields": [
+        "unused target groups",
+        "duplicated labels not used for selected evaluation mode"
+      ],
+      "answer_format": {
+        "type": "single_option_letter",
+        "valid_values_source": "generated choices"
+      },
+      "prompt_template": "You are answering a truthfulness benchmark multiple-choice question. Choose the answer that is truthful and best supported. Return only the option letter. Do not explain. Do not include reasoning. Question:\\n{question}\\n\\nChoices:\\n{choices}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "gsm8k",
+      "dataset_name": "GSM8K",
+      "task_type": "numeric_short_answer",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "openai/gsm8k",
+        "hf_config": "main",
+        "split": "test"
+      },
+      "field_mapping": {
+        "question": "question",
+        "choices": "empty object",
+        "answer": "final value after #### in answer"
+      },
+      "metadata_keep_fields": [
+        "raw_answer",
+        "answer_type"
+      ],
+      "ignored_fields": [
+        "chain-of-thought solution except retained as raw_answer metadata"
+      ],
+      "answer_format": {
+        "type": "number_or_short_expression",
+        "valid_values": "final numeric answer only"
+      },
+      "prompt_template": "You are answering a grade-school math benchmark problem. Compute the final answer. Return only the final number or shortest final expression. Do not explain. Do not include reasoning. Do not include units unless the question explicitly asks for units. Problem:\\n{question}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "bbh",
+      "dataset_name": "BBH",
+      "task_type": "free_form_short_answer",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "lukaemon/bbh",
+        "hf_config": "boolean_expressions",
+        "split": "test"
+      },
+      "field_mapping": {
+        "question": "input",
+        "choices": "empty object unless a specific BBH subset is converted into choices",
+        "answer": "target"
+      },
+      "metadata_keep_fields": [
+        "answer_type"
+      ],
+      "ignored_fields": [
+        "unused subset examples",
+        "formatting artifacts"
+      ],
+      "answer_format": {
+        "type": "short_text",
+        "valid_values": "depends on BBH subset; for boolean_expressions usually True or False"
+      },
+      "prompt_template": "You are answering a benchmark short-answer question. Return only the final answer. Do not explain. Do not include reasoning. Keep the answer as short as possible. Question:\\n{question}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "winogrande",
+      "dataset_name": "Winogrande",
+      "task_type": "binary_choice",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "allenai/winogrande",
+        "hf_config": "winogrande_xl",
+        "split": "validation"
+      },
+      "field_mapping": {
+        "question": "sentence",
+        "choices": "option1 -> A, option2 -> B",
+        "answer": "answer 1/2 mapped to A/B"
+      },
+      "metadata_keep_fields": [],
+      "ignored_fields": [
+        "unused source ids",
+        "split bookkeeping"
+      ],
+      "answer_format": {
+        "type": "single_option_letter",
+        "valid_values": [
+          "A",
+          "B"
+        ]
+      },
+      "prompt_template": "You are answering a two-choice coreference benchmark question. The sentence contains a blank or ambiguous reference. Choose the option that best completes or resolves it. Return only A or B. Do not explain. Do not include reasoning. Sentence:\\n{question}\\n\\nChoices:\\n{choices}\\n\\nAnswer:"
+    },
+    {
+      "dataset_key": "openbookqa",
+      "dataset_name": "OpenBookQA",
+      "task_type": "multiple_choice",
+      "source_language": "en",
+      "raw_source": {
+        "hf_path": "allenai/openbookqa",
+        "hf_config": "main",
+        "split": "test"
+      },
+      "field_mapping": {
+        "question": "question_stem",
+        "choices": "choices.label[] + choices.text[]",
+        "answer": "answerKey"
+      },
+      "metadata_keep_fields": [
+        "id"
+      ],
+      "ignored_fields": [
+        "unused source annotations"
+      ],
+      "answer_format": {
+        "type": "single_option_letter",
+        "valid_values_source": "choices.label"
+      },
+      "prompt_template": "You are answering an open-book science multiple-choice question. Choose exactly one option from the listed labels. Return only the option label. Do not explain. Do not include reasoning. Question:\\n{question}\\n\\nChoices:\\n{choices}\\n\\nAnswer:"
+    }
+  ]
+}
