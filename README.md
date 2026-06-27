@@ -275,6 +275,8 @@ OpenAPI:  http://localhost:6341/api/openapi.json
 RabbitMQ: http://localhost:15672
 ```
 
+![Swagger OpenAPI docs](images/swagger-openapi.png)
+
 The browser calls API paths through the frontend origin, for example `http://localhost:6342/api/system/status`. Vite proxies `/api` to `http://backend:8000` inside the Docker network.
 
 The backend container runs database migrations automatically on startup. To run migrations manually:
