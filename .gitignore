@@ -21,6 +21,8 @@ env/
 node_modules/
 dist/
 coverage/
+pnpm-debug.log*
+*.tsbuildinfo
 
 # Django
 *.sqlite3

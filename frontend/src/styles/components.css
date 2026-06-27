@@ -1,0 +1,155 @@
+.icon-button,
+.export-button,
+.primary-action,
+.task-controls button {
+  border: 1px solid #c9d1dc;
+  background: #ffffff;
+  color: #17202a;
+  min-height: 34px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 11px;
+  cursor: pointer;
+}
+
+.primary-action {
+  width: 100%;
+  background: #1f6feb;
+  color: #ffffff;
+  border-color: #1f6feb;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  background: #eef2f6;
+  color: #3b4656;
+}
+
+.status-badge[data-status="ok"] {
+  background: #e7f6ed;
+  color: #137333;
+}
+
+.status-badge[data-status="off"] {
+  background: #f1f3f5;
+  color: #6c7684;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.metric {
+  border: 1px solid #dde3eb;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.metric span,
+.row-item span,
+.model-meta,
+.task-row span {
+  display: block;
+  color: #637083;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.list-section h3 {
+  font-size: 13px;
+  margin: 0 0 8px;
+}
+
+.row-item,
+.model-row,
+.dataset-row,
+.task-row {
+  border: 1px solid #dde3eb;
+  border-radius: 6px;
+  padding: 10px;
+  background: #ffffff;
+}
+
+.model-row,
+.dataset-row {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-row.selected,
+.dataset-row.selected,
+.language-strip button.selected {
+  border-color: #1f6feb;
+  background: #eef5ff;
+}
+
+.model-row.disabled {
+  opacity: 0.5;
+}
+
+.model-name {
+  display: block;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.dataset-table {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.dataset-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.language-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.language-strip button {
+  border: 1px solid #c9d1dc;
+  background: #ffffff;
+  border-radius: 6px;
+  min-height: 30px;
+  padding: 0 9px;
+}
+
+.task-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.task-row {
+  display: grid;
+  gap: 9px;
+}
+
+.progress-track {
+  height: 6px;
+  border-radius: 99px;
+  background: #e8edf3;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #1f6feb;
+}

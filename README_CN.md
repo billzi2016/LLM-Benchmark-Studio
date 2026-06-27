@@ -107,6 +107,46 @@ python manage.py runserver 6325
 http://localhost:6325/api/system/status
 ```
 
+## 本地运行 Vue
+
+前端使用 pnpm，不使用 npm。
+
+安装依赖：
+
+```bash
+pnpm install
+```
+
+启动前端：
+
+```bash
+pnpm --dir frontend dev
+```
+
+前端默认地址：
+
+```text
+http://localhost:5173
+```
+
+前端会通过 Vite proxy 调用 Django：
+
+```text
+http://localhost:6325/api
+```
+
+运行前端测试：
+
+```bash
+pnpm --dir frontend test
+```
+
+构建前端：
+
+```bash
+pnpm --dir frontend build
+```
+
 ## 运行测试
 
 在项目根目录运行：
