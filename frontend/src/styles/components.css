@@ -121,10 +121,6 @@
   background: #eef5ff;
 }
 
-.model-row.disabled {
-  opacity: 0.5;
-}
-
 .model-name {
   display: block;
   font-weight: 700;

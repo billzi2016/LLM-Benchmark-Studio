@@ -69,7 +69,7 @@ export const useStudioStore = defineStore('studio', {
           this.loadError = `${failed.length} API request${failed.length === 1 ? '' : 's'} failed`
         }
         if (!this.selectedModelNames.length) {
-          this.selectedModelNames = this.models.filter((model) => model.activate).slice(0, 2).map((model) => model.name)
+          this.selectedModelNames = this.models.slice(0, 2).map((model) => model.name)
         }
         if (!this.selectedDatasetNames.length) {
           this.selectedDatasetNames = this.datasets.slice(0, 3).map((dataset) => dataset.dataset_name)

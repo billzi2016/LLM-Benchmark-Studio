@@ -94,7 +94,7 @@ onMounted(() => {
             v-for="model in store.models"
             :key="model.name"
             class="model-row"
-            :class="{ selected: store.selectedModelNames.includes(model.name), disabled: !model.activate }"
+            :class="{ selected: store.selectedModelNames.includes(model.name) }"
             type="button"
             @click="store.toggleModel(model.name)"
           >
