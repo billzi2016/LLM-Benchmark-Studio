@@ -223,7 +223,8 @@ http://localhost:6342
 前端会通过 Vite proxy 调用 Django：
 
 ```text
-http://localhost:6341
+浏览器 -> http://localhost:6342/api
+Vite proxy -> http://backend:8000/api
 ```
 
 运行前端测试：
