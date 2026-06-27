@@ -2,6 +2,14 @@
 
 LLM Benchmark Studio 是一个本地优先的 LLM 测评系统，规划由五部分组成：
 
+![LLM Benchmark Studio 界面截图](images/demo-v1.png)
+
+中文架构和流程图：
+
+```text
+docs/mermaid-flows-cn.md
+```
+
 - Django：只负责 API、SSE、配置读取、结果查询和任务入口。
 - Vue：前端 Studio，默认按 21:9 屏幕设计。
 - PostgreSQL：保存数据集、模型输出、LLM judge、regex judge、任务状态和导出结果。

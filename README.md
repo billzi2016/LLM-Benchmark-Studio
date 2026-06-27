@@ -2,6 +2,14 @@
 
 LLM Benchmark Studio is a local-first benchmark system for running model evaluations with Django, Vue, PostgreSQL, RabbitMQ, and Celery.
 
+![LLM Benchmark Studio demo](images/demo-v1.png)
+
+Architecture and flow diagrams:
+
+```text
+docs/mermaid-flows.md
+```
+
 Current planning documents live in:
 
 ```text
