@@ -28,6 +28,14 @@ pyproject.toml           Python 项目和测试配置
 
 ## Docker Compose 启动
 
+首次运行先复制环境变量模板：
+
+```bash
+cp .env.example .env
+```
+
+然后按本机情况修改 `.env`。`.env` 里可能包含数据库密码和 API key，不要提交到 git。
+
 在项目根目录运行：
 
 ```bash
