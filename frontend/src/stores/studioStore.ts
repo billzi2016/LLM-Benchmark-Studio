@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 
 import { fetchDatasets, fetchLanguages, fetchModels, fetchProviders, fetchSystemStatus } from '../api/studio'
 import type { DatasetSummary, Language, LlmModel, ProviderInfo, StudioTask, SystemStatus } from '../types/studio'
+import { buildPreviewTasks } from '../utils/taskQueue'
 
 function isGenerationModel(model: LlmModel): boolean {
   const modelType = String(model.metadata.type ?? 'generation').toLowerCase()
@@ -95,21 +96,7 @@ export const useStudioStore = defineStore('studio', {
     createPreviewTasks() {
       const runGroupId = `preview-${Date.now()}`
       const selectedDatasets = this.datasets.filter((dataset) => this.selectedDatasetNames.includes(dataset.dataset_name))
-      this.tasks = this.selectedModelNames.flatMap((modelName, modelIndex) =>
-        selectedDatasets.flatMap((dataset, datasetIndex) =>
-          [0, 1, 2].map((sampleIndex) => ({
-            id: `${runGroupId}-${modelIndex}-${datasetIndex}-${sampleIndex}`,
-            run_group_id: runGroupId,
-            model_name: modelName,
-            dataset_name: dataset.dataset_name,
-            sample_label: `sample ${sampleIndex + 1}`,
-            model_group_order: modelIndex,
-            dataset_order: datasetIndex,
-            sample_order: sampleIndex,
-            progress_percent: 0
-          }))
-        )
-      )
+      this.tasks = buildPreviewTasks(this.selectedModelNames, selectedDatasets, this.selectedLanguage, runGroupId)
     }
   }
 })

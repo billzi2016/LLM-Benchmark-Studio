@@ -5,7 +5,7 @@ export function compareTasksByModelFirst(left: StudioTask, right: StudioTask): n
     left.run_group_id.localeCompare(right.run_group_id) ||
     left.model_group_order - right.model_group_order ||
     left.dataset_order - right.dataset_order ||
-    left.sample_order - right.sample_order ||
+    left.language_code.localeCompare(right.language_code) ||
     left.id.localeCompare(right.id)
   )
 }

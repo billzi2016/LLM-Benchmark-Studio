@@ -107,7 +107,7 @@ PostgreSQL 数据默认持久化在当前项目目录：
 .docker/postgres/data/
 ```
 
-这个目录已加入 `.gitignore`。`docker compose down` 不会删除该目录；如果需要清空数据库，先停止 compose，再手动删除 `.docker/postgres/data/`。
+这个目录已加入 `.gitignore`。`docker compose down` 会保留数据库数据；如果需要彻底清空 PostgreSQL，先停止 compose，再手动删除 `.docker/postgres/data/`。
 
 如果不用 compose PostgreSQL，而是连接你手动启动的本机 PostgreSQL，把 `.env` 改成：
 

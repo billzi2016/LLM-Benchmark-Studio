@@ -64,11 +64,14 @@ export interface Language {
 export interface StudioTask {
   id: string
   run_group_id: string
+  language_code: string
+  needs_translation: boolean
   model_name: string
   dataset_name: string
-  sample_label: string
+  dataset_display_name: string
+  total_questions: number
+  completed_questions: number
   model_group_order: number
   dataset_order: number
-  sample_order: number
   progress_percent: number
 }

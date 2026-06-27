@@ -293,7 +293,7 @@ PostgreSQL data is persisted inside the current project directory:
 .docker/postgres/data/
 ```
 
-This directory is ignored by git. `docker compose down` keeps it. To reset the database, stop compose first, then delete `.docker/postgres/data/`.
+This directory is ignored by git. `docker compose down` keeps the database data. To clear PostgreSQL completely, stop compose first, then delete `.docker/postgres/data/`.
 
 To use a manually started host PostgreSQL instead of compose PostgreSQL, set:
 

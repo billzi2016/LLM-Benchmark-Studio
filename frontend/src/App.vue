@@ -153,7 +153,9 @@ onMounted(() => {
           <div v-for="task in sortedTasks(store.tasks)" :key="task.id" class="task-row">
             <div>
               <strong>{{ task.model_name }}</strong>
-              <span>{{ task.dataset_name }} · {{ task.sample_label }}</span>
+              <span>{{ task.language_code }} · {{ task.dataset_display_name }}</span>
+              <span>{{ task.needs_translation ? 'translate first, then benchmark' : 'benchmark ready' }}</span>
+              <span>{{ task.completed_questions.toLocaleString() }} / {{ task.total_questions.toLocaleString() }}</span>
             </div>
             <div class="progress-track">
               <div class="progress-fill" :style="{ width: `${task.progress_percent}%` }"></div>
