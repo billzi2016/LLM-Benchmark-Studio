@@ -93,6 +93,8 @@ RabbitMQ 管理页面：
 http://localhost:15672
 ```
 
+![RabbitMQ 管理页面](images/rabbitmq.png)
+
 默认账号密码来自 `.env` 或 compose 默认值：
 
 ```text
