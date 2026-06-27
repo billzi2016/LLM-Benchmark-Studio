@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+import socket
 from typing import Any
 
 from apps.datasets.catalog import scan_datasets
 from apps.datasets.languages import load_languages
+from apps.llms.providers import get_provider
 from apps.llms.registry import load_model_registry
+from django.db import connection
 
 
 def file_status(path: Path) -> dict[str, Any]:
@@ -16,13 +19,77 @@ def file_status(path: Path) -> dict[str, Any]:
     }
 
 
+def ok_service(name: str, label: str, detail: str = "") -> dict[str, Any]:
+    return {"name": name, "label": label, "status": "ok", "detail": detail}
+
+
+def error_service(name: str, label: str, exc: Exception) -> dict[str, Any]:
+    return {
+        "name": name,
+        "label": label,
+        "status": "error",
+        "detail": f"{exc.__class__.__name__}: {exc}",
+    }
+
+
+def disabled_service(name: str, label: str, detail: str = "disabled") -> dict[str, Any]:
+    return {"name": name, "label": label, "status": "off", "detail": detail}
+
+
+def check_database() -> dict[str, Any]:
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except Exception as exc:  # noqa: BLE001
+        return error_service("postgresql", "PostgreSQL", exc)
+    db = connection.settings_dict
+    return ok_service("postgresql", "PostgreSQL", f"{db.get('HOST')}:{db.get('PORT')}")
+
+
+def check_tcp(name: str, label: str, host: str, port: int) -> dict[str, Any]:
+    try:
+        with socket.create_connection((host, int(port)), timeout=2):
+            pass
+    except Exception as exc:  # noqa: BLE001
+        return error_service(name, label, exc)
+    return ok_service(name, label, f"{host}:{port}")
+
+
+def check_providers(settings: Any) -> list[dict[str, Any]]:
+    services: list[dict[str, Any]] = []
+    for provider_name, config in sorted(settings.LLM_PROVIDERS.items()):
+        label = f"Provider: {provider_name}"
+        if not config.get("enabled"):
+            services.append(disabled_service(f"provider_{provider_name}", label))
+            continue
+        try:
+            health = get_provider(provider_name, settings.LLM_PROVIDERS).health()
+        except Exception as exc:  # noqa: BLE001
+            services.append(error_service(f"provider_{provider_name}", label, exc))
+            continue
+        model_count = health.get("model_count")
+        detail = str(config.get("base_url") or "")
+        if model_count is not None:
+            detail = f"{detail} · {model_count} models"
+        services.append(ok_service(f"provider_{provider_name}", label, detail))
+    return services
+
+
 def build_system_status(settings: Any) -> dict[str, Any]:
     models = load_model_registry(settings.LLM_MODEL_NAMES_PATH)
     languages = load_languages(settings.LANGUAGES_PATH)
     datasets = scan_datasets(settings.BENCHMARK_DATASETS_DIR)
+    services = [
+        ok_service("backend", "Django API", "running"),
+        check_database(),
+        check_tcp("rabbitmq", "RabbitMQ", settings.RABBITMQ_HOST, settings.RABBITMQ_PORT),
+        *check_providers(settings),
+    ]
     return {
         "service": "django",
-        "status": "ok",
+        "status": "ok" if all(service["status"] != "error" for service in services) else "error",
+        "services": services,
         "data_dir": str(settings.DATA_DIR),
         "benchmark_datasets_dir": str(settings.BENCHMARK_DATASETS_DIR),
         "files": {

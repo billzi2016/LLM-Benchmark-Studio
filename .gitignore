@@ -42,3 +42,6 @@ data/benchmark_datasets/*.json
 *.log
 logs/
 exports/
+
+# Docker runtime data
+.docker/postgres/data/

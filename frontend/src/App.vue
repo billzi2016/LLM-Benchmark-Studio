@@ -39,6 +39,7 @@ onMounted(() => {
           <Activity :size="18" />
           <h2>System</h2>
         </div>
+        <p v-if="store.loadError" class="inline-error">{{ store.loadError }}</p>
         <div class="metric-grid">
           <div class="metric">
             <span>Backend</span>
@@ -58,13 +59,27 @@ onMounted(() => {
           </div>
         </div>
         <div class="list-section">
+          <h3>Service Health</h3>
+          <div
+            v-for="service in store.systemStatus?.services ?? []"
+            :key="service.name"
+            class="row-item health-row"
+          >
+            <div>
+              <strong>{{ service.label }}</strong>
+              <span>{{ service.detail }}</span>
+            </div>
+            <StatusBadge :status="service.status" />
+          </div>
+        </div>
+        <div class="list-section">
           <h3>Providers</h3>
           <div v-for="provider in store.providers" :key="provider.provider" class="row-item">
             <div>
               <strong>{{ provider.provider }}</strong>
-              <span>{{ provider.protocol }}</span>
+              <span>{{ provider.protocol }} · {{ provider.base_url }}</span>
             </div>
-            <StatusBadge :status="provider.enabled ? 'ok' : 'off'" />
+            <StatusBadge :status="provider.enabled ? 'on' : 'off'" />
           </div>
         </div>
       </aside>

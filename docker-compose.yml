@@ -1,4 +1,20 @@
 services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-llm_benchmark_studio}
+      POSTGRES_USER: ${POSTGRES_USER:-llm_benchmark}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "${POSTGRES_HOST_PORT:-55432}:5432"
+    volumes:
+      - ./.docker/postgres/data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-llm_benchmark} -d ${POSTGRES_DB:-llm_benchmark_studio}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   rabbitmq:
     image: rabbitmq:3.13-management
     environment:
@@ -24,15 +40,15 @@ services:
       - .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.local
-      POSTGRES_HOST: ${POSTGRES_HOST:-host.docker.internal}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      RABBITMQ_HOST: ${RABBITMQ_HOST:-rabbitmq}
-      RABBITMQ_PORT: ${RABBITMQ_PORT:-5672}
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672//}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://guest:guest@rabbitmq:5672//}
-      FRONTEND_ALLOWED_ORIGINS: ${FRONTEND_ALLOWED_ORIGINS:-http://localhost:6332}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:6332}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
+      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
+      FRONTEND_ALLOWED_ORIGINS: ${FRONTEND_ALLOWED_ORIGINS:-http://localhost:6342}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:6342}
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
       VLLM_HOST: ${VLLM_HOST:-localhost}
       VLLM_PORT: ${VLLM_PORT:-8000}
       VLLM_BASE_URL: ${VLLM_BASE_URL:-http://localhost:8000/v1}
@@ -43,10 +59,12 @@ services:
       OPENAI_COMPATIBLE_PORT: ${OPENAI_COMPATIBLE_PORT:-6328}
       OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-http://localhost:6328/v1}
     ports:
-      - "${DJANGO_PORT:-6331}:8000"
+      - "${DJANGO_PORT:-6341}:8000"
     volumes:
       - .:/app
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -56,9 +74,9 @@ services:
     command: sh -c "corepack enable && pnpm install --frozen-lockfile --config.confirmModulesPurge=false && pnpm dev --host 0.0.0.0 --port 5173"
     environment:
       CI: "true"
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:6331/api}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:6341/api}
     ports:
-      - "${FRONTEND_PORT:-6332}:5173"
+      - "${FRONTEND_PORT:-6342}:5173"
     volumes:
       - .:/app
       - frontend_node_modules:/app/frontend/node_modules

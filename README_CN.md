@@ -11,13 +11,13 @@ LLM Benchmark Studio 是一个本地优先的 LLM 测评系统，规划由五部
 当前后端默认端口是：
 
 ```text
-6331
+6341
 ```
 
 当前前端默认端口是：
 
 ```text
-6332
+6342
 ```
 
 ## 目录结构
@@ -26,7 +26,7 @@ LLM Benchmark Studio 是一个本地优先的 LLM 测评系统，规划由五部
 backend/                 Django 后端
 data/                    数据、模型列表、语言列表、下载和解析脚本
 docs/prds/               PRD 和 JSON 格式设计文档
-docker-compose.yml       RabbitMQ、Django backend、Vue frontend 编排
+docker-compose.yml       PostgreSQL、RabbitMQ、Django backend、Vue frontend 编排
 Dockerfile               Django backend 镜像
 requirements.txt         Python 依赖
 pyproject.toml           Python 项目和测试配置
@@ -42,63 +42,33 @@ cp .env.example .env
 
 然后按本机情况修改 `.env`。`.env` 里可能包含数据库密码和 API key，不要提交到 git。
 
-`docker-compose.yml` 不启动 PostgreSQL。默认使用你本机已经运行的 PostgreSQL：
+`docker-compose.yml` 默认启动 PostgreSQL、RabbitMQ、Django backend 和 Vue frontend。PostgreSQL 容器内部端口是 `5432`，宿主机访问端口默认是 `55432`，不会抢占你本机已有的 `5432`。
 
 ```env
-POSTGRES_HOST=host.docker.internal
+POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
-```
-
-如果 PostgreSQL 没启动，另开一个终端手动启动本机 PostgreSQL。Homebrew 安装的 macOS PostgreSQL 通常可以用：
-
-```bash
-brew services start postgresql@16
-```
-
-如果要前台临时启动，可以按你的本机数据目录执行。Apple Silicon Homebrew 常见路径：
-
-```bash
-postgres -D /opt/homebrew/var/postgresql@16
-```
-
-Intel Mac Homebrew 常见路径：
-
-```bash
-postgres -D /usr/local/var/postgresql@16
-```
-
-确认 PostgreSQL 是否可用：
-
-```bash
-pg_isready -h 127.0.0.1 -p 5432
-```
-
-Django 容器连接本机 PostgreSQL 时，`.env` 保持：
-
-```env
-POSTGRES_HOST=host.docker.internal
-POSTGRES_PORT=5432
+POSTGRES_HOST_PORT=55432
 ```
 
 在项目根目录运行：
 
 ```bash
-docker compose up --build backend rabbitmq frontend
+docker compose up --build
 ```
 
 后台运行：
 
 ```bash
-docker compose up --build -d backend rabbitmq frontend
+docker compose up --build -d
 ```
 
 启动后访问：
 
 ```text
-前端: http://localhost:6332
-后端: http://localhost:6331/api/system/status
-Swagger: http://localhost:6331/api/docs
-OpenAPI JSON: http://localhost:6331/api/openapi.json
+前端: http://localhost:6342
+后端: http://localhost:6341/api/system/status
+Swagger: http://localhost:6341/api/docs
+OpenAPI JSON: http://localhost:6341/api/openapi.json
 ```
 
 RabbitMQ 管理页面：
@@ -111,6 +81,21 @@ http://localhost:15672
 
 ```text
 guest / guest
+```
+
+PostgreSQL 数据默认持久化在当前项目目录：
+
+```text
+.docker/postgres/data/
+```
+
+这个目录已加入 `.gitignore`。`docker compose down` 不会删除该目录；如果需要清空数据库，先停止 compose，再手动删除 `.docker/postgres/data/`。
+
+如果不用 compose PostgreSQL，而是连接你手动启动的本机 PostgreSQL，把 `.env` 改成：
+
+```env
+POSTGRES_HOST=host.docker.internal
+POSTGRES_PORT=5432
 ```
 
 ## Docker Compose 停止
@@ -138,6 +123,7 @@ docker compose down -v
 ```bash
 docker compose logs -f backend
 docker compose logs -f frontend
+docker compose logs -f postgres
 docker compose logs -f rabbitmq
 ```
 
@@ -197,13 +183,13 @@ pip install -r requirements.txt
 
 ```bash
 cd backend
-python manage.py runserver 6331
+python manage.py runserver 6341
 ```
 
 访问：
 
 ```text
-http://localhost:6331/api/system/status
+http://localhost:6341/api/system/status
 ```
 
 ## 本地运行 Vue
@@ -225,13 +211,13 @@ pnpm --dir frontend dev
 前端默认地址：
 
 ```text
-http://localhost:6332
+http://localhost:6342
 ```
 
 前端会通过 Vite proxy 调用 Django：
 
 ```text
-http://localhost:6331/api
+http://localhost:6341/api
 ```
 
 运行前端测试：

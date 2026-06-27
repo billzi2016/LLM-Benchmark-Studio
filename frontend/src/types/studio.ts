@@ -1,6 +1,7 @@
 export interface SystemStatus {
   service: string
   status: string
+  services: SystemService[]
   providers: {
     default_provider: string
     judge_provider: string
@@ -13,6 +14,13 @@ export interface SystemStatus {
     no_think: number
   }
   counts: Record<string, number>
+}
+
+export interface SystemService {
+  name: string
+  label: string
+  status: string
+  detail: string
 }
 
 export interface ProviderInfo {

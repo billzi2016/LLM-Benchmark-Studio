@@ -237,64 +237,49 @@ Expected behavior:
 
 ## Docker Compose
 
-`docker-compose.yml` does not start PostgreSQL. It uses an already-running host PostgreSQL by default:
+`docker-compose.yml` starts PostgreSQL, RabbitMQ, the Django backend, and the Vue frontend by default. PostgreSQL listens on `5432` inside Docker and is exposed to the host as `localhost:55432`, so it does not conflict with an existing local `5432`.
 
 ```env
-POSTGRES_HOST=host.docker.internal
+POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
-```
-
-If PostgreSQL is not running, open another terminal and start the host PostgreSQL manually. For Homebrew PostgreSQL on macOS:
-
-```bash
-brew services start postgresql@16
-```
-
-For a temporary foreground process, run PostgreSQL with your local data directory. Apple Silicon Homebrew commonly uses:
-
-```bash
-postgres -D /opt/homebrew/var/postgresql@16
-```
-
-Intel Mac Homebrew commonly uses:
-
-```bash
-postgres -D /usr/local/var/postgresql@16
-```
-
-Check readiness:
-
-```bash
-pg_isready -h 127.0.0.1 -p 5432
-```
-
-For Docker backend containers to connect to host PostgreSQL, keep:
-
-```env
-POSTGRES_HOST=host.docker.internal
-POSTGRES_PORT=5432
+POSTGRES_HOST_PORT=55432
 ```
 
 Start the normal local stack:
 
 ```bash
-docker compose up --build backend rabbitmq frontend
+docker compose up --build
 ```
 
 Run it in the background:
 
 ```bash
-docker compose up --build -d backend rabbitmq frontend
+docker compose up --build -d
 ```
 
 Open:
 
 ```text
-Frontend: http://localhost:6332
-Backend:  http://localhost:6331/api/system/status
-Swagger:  http://localhost:6331/api/docs
-OpenAPI:  http://localhost:6331/api/openapi.json
+Frontend: http://localhost:6342
+Backend:  http://localhost:6341/api/system/status
+Swagger:  http://localhost:6341/api/docs
+OpenAPI:  http://localhost:6341/api/openapi.json
 RabbitMQ: http://localhost:15672
+```
+
+PostgreSQL data is persisted inside the current project directory:
+
+```text
+.docker/postgres/data/
+```
+
+This directory is ignored by git. `docker compose down` keeps it. To reset the database, stop compose first, then delete `.docker/postgres/data/`.
+
+To use a manually started host PostgreSQL instead of compose PostgreSQL, set:
+
+```env
+POSTGRES_HOST=host.docker.internal
+POSTGRES_PORT=5432
 ```
 
 Stop services:
