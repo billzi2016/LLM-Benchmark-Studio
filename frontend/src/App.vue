@@ -7,6 +7,7 @@ import ExportResultsButton from './components/results/ExportResultsButton.vue'
 import StatusBadge from './components/shared/StatusBadge.vue'
 import type { SystemMetrics } from './types/studio'
 import { sortedTasks } from './utils/taskOrdering'
+import { APP_VERSION } from './version'
 
 const store = useStudioStore()
 const activeResize = ref<null | { panel: string; startX: number; startWidth: number }>(null)
@@ -226,6 +227,7 @@ function stopResize() {
         </div>
       </div>
       <div class="topbar-actions">
+        <span class="app-version">{{ APP_VERSION }}</span>
         <StatusBadge :status="store.systemStatus?.status ?? 'loading'" />
         <button class="icon-button" type="button" title="Refresh" @click="store.loadInitialData">
           <RefreshCw :size="17" />
