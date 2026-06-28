@@ -2,6 +2,17 @@
 
 LLM Benchmark Studio 是一个本地优先的 LLM 测评系统，规划由五部分组成：
 
+## 技术栈
+
+- 后端：Django 5、Django Ninja、Server-Sent Events（SSE）
+- 任务队列：Celery、RabbitMQ
+- 数据库：PostgreSQL
+- 前端：Vue 3、Vite、Pinia
+- 包管理：pnpm
+- 系统监控：宿主机侧 FastAPI system profiler
+- 容器编排：Docker、Docker Compose
+- LLM Provider：Ollama、OpenAI、OpenRouter、vLLM、SGLang、OpenAI-compatible APIs
+
 最短可运行路径先看：
 
 ```text

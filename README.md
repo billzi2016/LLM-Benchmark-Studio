@@ -2,6 +2,17 @@
 
 LLM Benchmark Studio is a local-first benchmark system for running model evaluations with Django, Vue, PostgreSQL, RabbitMQ, and Celery.
 
+## Tech Stack
+
+- Backend: Django 5, Django Ninja, Server-Sent Events (SSE)
+- Task queue: Celery, RabbitMQ
+- Database: PostgreSQL
+- Frontend: Vue 3, Vite, Pinia
+- Package management: pnpm
+- System monitoring: FastAPI host-side system profiler
+- Containers: Docker, Docker Compose
+- LLM providers: Ollama, OpenAI, OpenRouter, vLLM, SGLang, OpenAI-compatible APIs
+
 Start here for the shortest runnable path:
 
 ```text
