@@ -5,6 +5,7 @@ import { Activity, Database, Download, Languages, Pause, Play, RefreshCw, Square
 import { useStudioStore } from './stores/studioStore'
 import ExportResultsButton from './components/results/ExportResultsButton.vue'
 import StatusBadge from './components/shared/StatusBadge.vue'
+import type { SystemMetrics } from './types/studio'
 import { sortedTasks } from './utils/taskOrdering'
 
 const store = useStudioStore()
@@ -98,14 +99,55 @@ function sparklinePoints(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): string {
     .join(' ')
 }
 
-function sparklineAreaPoints(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): string {
-  const points = sparklinePoints(metric)
-  if (!points) {
-    return ''
+function metricValueFromSnapshot(snapshot: SystemMetrics, metric: 'cpu' | 'gpu' | 'memory' | 'disk'): number {
+  if (metric === 'cpu') {
+    return snapshot.cpu.percent ?? 0
   }
-  const firstPoint = points.split(' ')[0]
-  const firstX = firstPoint?.split(',')[0] ?? '0'
-  return `${firstX},100 ${points} 100,100`
+  if (metric === 'gpu') {
+    return snapshot.gpu.utilization_percent ?? 0
+  }
+  if (metric === 'memory') {
+    return snapshot.memory.total_bytes > 0 ? (snapshot.memory.used_bytes / snapshot.memory.total_bytes) * 100 : 0
+  }
+  return snapshot.disk.percent ?? 0
+}
+
+function toneFromValue(value: number): 'high' | 'mid' | 'low' {
+  if (value >= 80) {
+    return 'high'
+  }
+  if (value >= 20) {
+    return 'mid'
+  }
+  return 'low'
+}
+
+function sparklineSegments(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): Array<{ points: string; tone: 'high' | 'mid' | 'low' }> {
+  const snapshots = store.profilerHistory?.snapshots ?? []
+  if (snapshots.length < 2) {
+    return []
+  }
+  const windowSeconds = 600
+  const latestTimestamp = new Date(snapshots[snapshots.length - 1].timestamp).getTime()
+  if (!Number.isFinite(latestTimestamp)) {
+    return []
+  }
+  const points = snapshots.map((snapshot) => {
+    const value = Math.max(0, Math.min(100, metricValueFromSnapshot(snapshot, metric)))
+    const pointTimestamp = new Date(snapshot.timestamp).getTime()
+    const ageSeconds = Math.max(0, (latestTimestamp - pointTimestamp) / 1000)
+    const x = Math.max(0, 100 - (ageSeconds / windowSeconds) * 100)
+    const y = 100 - value
+    return { x, y, value }
+  })
+  return points.slice(0, -1).map((point, index) => {
+    const nextPoint = points[index + 1]
+    const value = (point.value + nextPoint.value) / 2
+    return {
+      points: `${point.x},100 ${point.x},${point.y} ${nextPoint.x},${nextPoint.y} ${nextPoint.x},100`,
+      tone: toneFromValue(value)
+    }
+  })
 }
 
 function currentMetricValue(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): number | null {
@@ -123,20 +165,6 @@ function currentMetricValue(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): number |
     return snapshot.memory.total_bytes > 0 ? (snapshot.memory.used_bytes / snapshot.memory.total_bytes) * 100 : null
   }
   return snapshot.disk.percent ?? null
-}
-
-function metricTone(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): 'high' | 'mid' | 'low' | 'none' {
-  const value = currentMetricValue(metric)
-  if (value == null) {
-    return 'none'
-  }
-  if (value >= 80) {
-    return 'high'
-  }
-  if (value >= 20) {
-    return 'mid'
-  }
-  return 'low'
 }
 
 function profilerMetricPercent(metric: 'cpu' | 'gpu' | 'disk'): string {
@@ -233,24 +261,39 @@ function stopResize() {
             <strong>{{ store.systemStatus?.contexts.think ?? '-' }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" :data-tone="metricTone('cpu')" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polygon :points="sparklineAreaPoints('cpu')" />
+            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon
+                v-for="(segment, index) in sparklineSegments('cpu')"
+                :key="`cpu-${index}`"
+                :points="segment.points"
+                :class="`metric-segment-${segment.tone}`"
+              />
               <polyline :points="sparklinePoints('cpu')" />
             </svg>
             <span>CPU</span>
             <strong>{{ profilerMetricPercent('cpu') }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" :data-tone="metricTone('gpu')" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polygon :points="sparklineAreaPoints('gpu')" />
+            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon
+                v-for="(segment, index) in sparklineSegments('gpu')"
+                :key="`gpu-${index}`"
+                :points="segment.points"
+                :class="`metric-segment-${segment.tone}`"
+              />
               <polyline :points="sparklinePoints('gpu')" />
             </svg>
             <span>GPU</span>
             <strong>{{ profilerMetricPercent('gpu') }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" :data-tone="metricTone('memory')" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polygon :points="sparklineAreaPoints('memory')" />
+            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon
+                v-for="(segment, index) in sparklineSegments('memory')"
+                :key="`memory-${index}`"
+                :points="segment.points"
+                :class="`metric-segment-${segment.tone}`"
+              />
               <polyline :points="sparklinePoints('memory')" />
             </svg>
             <span>Memory</span>
@@ -261,8 +304,13 @@ function stopResize() {
             }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" :data-tone="metricTone('disk')" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <polygon :points="sparklineAreaPoints('disk')" />
+            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon
+                v-for="(segment, index) in sparklineSegments('disk')"
+                :key="`disk-${index}`"
+                :points="segment.points"
+                :class="`metric-segment-${segment.tone}`"
+              />
               <polyline :points="sparklinePoints('disk')" />
             </svg>
             <span>Disk</span>
