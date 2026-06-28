@@ -14,7 +14,12 @@ router = Router(tags=["tasks"])
 class CreateRunRequest(Schema):
     model_names: list[str]
     dataset_names: list[str]
-    language_code: str
+    language_codes: list[str] = []
+    language_code: str | None = None
+
+
+class PlayRunRequest(Schema):
+    task_ids: list[str] = []
 
 
 @router.get("/runs", response=OkResponse)
@@ -25,11 +30,12 @@ def list_runs(request):  # noqa: ANN001
 
 @router.post("/runs", response=OkResponse)
 def create_task_run(request, payload: CreateRunRequest):  # noqa: ANN001
+    language_codes = payload.language_codes or ([payload.language_code] if payload.language_code else [])
     run = create_run(
         RunSelection(
             model_names=payload.model_names,
             dataset_names=payload.dataset_names,
-            language_code=payload.language_code,
+            language_codes=language_codes,
         )
     )
     return {"ok": True, "data": serialize_run(run), "meta": {}}
@@ -42,13 +48,13 @@ def get_run(request, run_id: str):  # noqa: ANN001
 
 
 @router.post("/runs/{run_id}/play", response=OkResponse)
-def play_run(request, run_id: str):  # noqa: ANN001
+def play_run(request, run_id: str, payload: PlayRunRequest):  # noqa: ANN001
     run = get_object_or_404(BenchmarkRun, id=run_id)
     if run.status != RunStatus.COMPLETED:
         run.status = RunStatus.RUNNING
         run.error_message = ""
         run.save(update_fields=["status", "error_message", "updated_at"])
-        execute_run_task.delay(str(run.id))
+        execute_run_task.delay(str(run.id), payload.task_ids or None)
     run = BenchmarkRun.objects.prefetch_related("tasks").get(id=run_id)
     return {"ok": True, "data": serialize_run(run), "meta": {}}
 

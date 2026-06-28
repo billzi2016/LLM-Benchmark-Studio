@@ -15,8 +15,8 @@ class RunStatus(models.TextChoices):
 
 
 class TaskKind(models.TextChoices):
+    TRANSLATION = "translation", "Translation"
     BENCHMARK = "benchmark", "Benchmark"
-    TRANSLATE_THEN_BENCHMARK = "translate_then_benchmark", "Translate Then Benchmark"
 
 
 class BenchmarkRun(models.Model):
@@ -69,8 +69,8 @@ class BenchmarkTask(models.Model):
         ordering = ["model_group_order", "dataset_order", "created_at"]
         constraints = [
             models.UniqueConstraint(
-                fields=["run", "model_name", "dataset_name", "language_code"],
-                name="unique_run_model_dataset_language",
+                fields=["run", "task_kind", "model_name", "dataset_name", "language_code"],
+                name="unique_run_kind_model_dataset_language",
             )
         ]
 
@@ -93,4 +93,3 @@ class QuestionResult(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["task", "sample_id"], name="unique_task_sample_id"),
         ]
-

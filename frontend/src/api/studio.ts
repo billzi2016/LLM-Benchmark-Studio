@@ -1,5 +1,13 @@
-import { getJson, postJson } from './client'
-import type { BenchmarkRun, DatasetSummary, Language, LlmModel, ProviderInfo, SystemStatus } from '../types/studio'
+import { getJson, getProfilerJson, openProfilerStream, postJson } from './client'
+import type {
+  BenchmarkRun,
+  DatasetSummary,
+  Language,
+  LlmModel,
+  ProviderInfo,
+  SystemProfilerHistory,
+  SystemStatus
+} from '../types/studio'
 
 export function fetchSystemStatus() {
   return getJson<SystemStatus>('/api/system/status')
@@ -7,6 +15,18 @@ export function fetchSystemStatus() {
 
 export function openSystemStream(intervalSeconds = 2) {
   return new EventSource(`/api/system/stream?interval=${intervalSeconds}`)
+}
+
+export function fetchProfilerSnapshot() {
+  return getProfilerJson<SystemStatus['metrics']>('/snapshot')
+}
+
+export function fetchProfilerHistory() {
+  return getProfilerJson<SystemProfilerHistory>('/history')
+}
+
+export function openProfilerSystemStream() {
+  return openProfilerStream('/stream')
 }
 
 export function fetchModels() {
@@ -33,12 +53,12 @@ export function fetchRun(runId: string) {
   return getJson<BenchmarkRun>(`/api/tasks/runs/${runId}`)
 }
 
-export function createRun(payload: { model_names: string[]; dataset_names: string[]; language_code: string }) {
+export function createRun(payload: { model_names: string[]; dataset_names: string[]; language_codes: string[] }) {
   return postJson<BenchmarkRun>('/api/tasks/runs', payload)
 }
 
-export function playRun(runId: string) {
-  return postJson<BenchmarkRun>(`/api/tasks/runs/${runId}/play`)
+export function playRun(runId: string, payload: { task_ids: string[] }) {
+  return postJson<BenchmarkRun>(`/api/tasks/runs/${runId}/play`, payload)
 }
 
 export function pauseRun(runId: string) {

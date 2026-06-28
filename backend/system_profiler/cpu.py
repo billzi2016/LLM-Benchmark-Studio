@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import platform
 import subprocess
+import time
 from typing import Any
 
 try:
@@ -48,6 +49,11 @@ def collect_cpu_metrics() -> dict[str, Any]:
     times_percent = psutil.cpu_times_percent(interval=None)._asdict() if psutil else {}
     load_avg = list(os.getloadavg()) if hasattr(os, "getloadavg") else [None, None, None]
 
+    if cpu_percent is None and platform.system() == "Linux":
+        cpu_percent = _read_linux_cpu_percent()
+    if not per_cpu_percent and platform.system() == "Linux":
+        per_cpu_percent = _read_linux_per_cpu_percent()
+
     if platform.system() == "Darwin":
         top_summary = _read_top_cpu_summary()
         if cpu_percent is None and top_summary:
@@ -60,7 +66,7 @@ def collect_cpu_metrics() -> dict[str, Any]:
         }
 
     return {
-        "percent": round(float(cpu_percent or 0.0), 2),
+        "percent": round(float(cpu_percent), 2) if cpu_percent is not None else None,
         "per_cpu_percent": [round(float(value), 2) for value in per_cpu_percent],
         "physical_cores": physical_cores or 0,
         "logical_cores": logical_cores or 0,
@@ -76,3 +82,47 @@ def collect_cpu_metrics() -> dict[str, Any]:
             "nice": round(float(times_percent.get("nice", 0.0)), 2),
         },
     }
+
+
+def _linux_cpu_snapshot() -> tuple[int, int] | None:
+    try:
+        with open("/proc/stat", "r", encoding="utf-8") as file:
+            first = file.readline().strip().split()
+    except OSError:
+        return None
+    if not first or first[0] != "cpu":
+        return None
+    values = [int(item) for item in first[1:]]
+    idle = values[3] + (values[4] if len(values) > 4 else 0)
+    total = sum(values)
+    return total, idle
+
+
+def _read_linux_cpu_percent() -> float | None:
+    first = _linux_cpu_snapshot()
+    if not first:
+        return None
+    time.sleep(0.2)
+    second = _linux_cpu_snapshot()
+    if not second:
+        return None
+    total_delta = second[0] - first[0]
+    idle_delta = second[1] - first[1]
+    if total_delta <= 0:
+        return None
+    return (1 - (idle_delta / total_delta)) * 100
+
+
+def _read_linux_per_cpu_percent() -> list[float]:
+    try:
+        with open("/proc/stat", "r", encoding="utf-8") as file:
+            rows = [line.strip().split() for line in file if line.startswith("cpu") and line[3].isdigit()]
+    except OSError:
+        return []
+    results: list[float] = []
+    for row in rows:
+        values = [int(item) for item in row[1:]]
+        idle = values[3] + (values[4] if len(values) > 4 else 0)
+        total = sum(values)
+        results.append(0.0 if total <= 0 else (1 - (idle / total)) * 100)
+    return results

@@ -5,11 +5,13 @@ import {
   fetchDatasets,
   fetchLanguages,
   fetchModels,
+  fetchProfilerHistory,
+  fetchProfilerSnapshot,
   fetchProviders,
   fetchRun,
   fetchRuns,
   fetchSystemStatus,
-  openSystemStream,
+  openProfilerSystemStream,
   pauseRun,
   playRun,
   stopRun
@@ -20,6 +22,8 @@ import type {
   Language,
   LlmModel,
   ProviderInfo,
+  SystemMetrics,
+  SystemProfilerHistory,
   StudioTask,
   SystemStatus
 } from '../types/studio'
@@ -44,20 +48,24 @@ function isGenerationModel(model: LlmModel): boolean {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let systemStream: EventSource | null = null
+let profilerHistoryTimer: ReturnType<typeof setInterval> | null = null
 
 export const useStudioStore = defineStore('studio', {
   state: () => ({
     systemStatus: null as SystemStatus | null,
     providers: [] as ProviderInfo[],
+    profilerSnapshot: null as SystemMetrics | null,
+    profilerHistory: null as SystemProfilerHistory | null,
     models: [] as LlmModel[],
     datasets: [] as DatasetSummary[],
     languages: [] as Language[],
     recentRuns: [] as BenchmarkRun[],
     currentRun: null as BenchmarkRun | null,
     tasks: [] as StudioTask[],
+    selectedTaskIds: [] as string[],
     selectedModelNames: [] as string[],
     selectedDatasetNames: [] as string[],
-    selectedLanguage: 'en',
+    selectedLanguageCodes: ['en'] as string[],
     loadError: '',
     loading: false
   }),
@@ -70,6 +78,7 @@ export const useStudioStore = defineStore('studio', {
       this.recentRuns = runs
       this.currentRun = runs[0] ?? null
       this.rebuildTaskList()
+      this.syncSelectedTasks()
     },
     upsertRun(run: BenchmarkRun | null) {
       if (!run) {
@@ -83,6 +92,18 @@ export const useStudioStore = defineStore('studio', {
       }
       this.currentRun = run
       this.rebuildTaskList()
+      this.syncSelectedTasks()
+    },
+    syncSelectedTasks() {
+      const available = new Set(
+        this.tasks.filter((task) => !['completed', 'error'].includes(task.status)).map((task) => task.id)
+      )
+      this.selectedTaskIds = this.selectedTaskIds.filter((id) => available.has(id))
+      if (!this.selectedTaskIds.length) {
+        this.selectedTaskIds = this.tasks
+          .filter((task) => !['completed', 'error'].includes(task.status))
+          .map((task) => task.id)
+      }
     },
     ensurePolling() {
       if (pollTimer || !this.currentRun) {
@@ -114,19 +135,13 @@ export const useStudioStore = defineStore('studio', {
       if (systemStream) {
         return
       }
-      systemStream = openSystemStream(2)
-      systemStream.addEventListener('system-snapshot', (event) => {
+      systemStream = openProfilerSystemStream()
+      systemStream.addEventListener('profiler-snapshot', (event) => {
         const payload = JSON.parse((event as MessageEvent).data) as {
           ok: boolean
-          data: SystemStatus['metrics']
+          data: SystemMetrics
         }
-        if (!this.systemStatus) {
-          return
-        }
-        this.systemStatus = {
-          ...this.systemStatus,
-          metrics: payload.data
-        }
+        this.profilerSnapshot = payload.data
       })
       systemStream.onerror = () => {
         if (systemStream) {
@@ -135,21 +150,43 @@ export const useStudioStore = defineStore('studio', {
         }
       }
     },
+    ensureProfilerHistoryPolling() {
+      if (profilerHistoryTimer) {
+        return
+      }
+      profilerHistoryTimer = setInterval(async () => {
+        try {
+          this.profilerHistory = await fetchProfilerHistory()
+        } catch {
+          return
+        }
+      }, 10000)
+    },
     async loadInitialData() {
       this.loading = true
       this.loadError = ''
       try {
-        const [systemStatus, providers, models, datasets, languages, runs] = await Promise.allSettled([
+        const [systemStatus, profilerSnapshot, profilerHistory, providers, models, datasets, languages, runs] =
+          await Promise.allSettled([
           fetchSystemStatus(),
+          fetchProfilerSnapshot(),
+          fetchProfilerHistory(),
           fetchProviders(),
           fetchModels(),
           fetchDatasets(),
           fetchLanguages(),
           fetchRuns()
-        ])
+          ])
         if (systemStatus.status === 'fulfilled') {
           this.systemStatus = systemStatus.value
+        }
+        if (profilerSnapshot.status === 'fulfilled') {
+          this.profilerSnapshot = profilerSnapshot.value
           this.ensureSystemStream()
+        }
+        if (profilerHistory.status === 'fulfilled') {
+          this.profilerHistory = profilerHistory.value
+          this.ensureProfilerHistoryPolling()
         }
         if (providers.status === 'fulfilled') {
           this.providers = providers.value
@@ -169,7 +206,7 @@ export const useStudioStore = defineStore('studio', {
             this.ensurePolling()
           }
         }
-        const failed = [systemStatus, providers, models, datasets, languages, runs].filter(
+        const failed = [systemStatus, profilerSnapshot, profilerHistory, providers, models, datasets, languages, runs].filter(
           (result) => result.status === 'rejected'
         )
         if (failed.length) {
@@ -180,6 +217,9 @@ export const useStudioStore = defineStore('studio', {
         }
         if (!this.selectedDatasetNames.length) {
           this.selectedDatasetNames = this.datasets.slice(0, 3).map((dataset) => dataset.dataset_name)
+        }
+        if (!this.selectedLanguageCodes.length && this.languages.length) {
+          this.selectedLanguageCodes = ['en']
         }
       } finally {
         this.loading = false
@@ -199,30 +239,60 @@ export const useStudioStore = defineStore('studio', {
         this.selectedDatasetNames.push(datasetName)
       }
     },
+    toggleTask(taskId: string) {
+      if (this.selectedTaskIds.includes(taskId)) {
+        this.selectedTaskIds = this.selectedTaskIds.filter((item) => item !== taskId)
+      } else {
+        this.selectedTaskIds.push(taskId)
+      }
+    },
+    selectAllUnfinishedTasks() {
+      this.selectedTaskIds = this.tasks
+        .filter((task) => !['completed', 'error'].includes(task.status))
+        .map((task) => task.id)
+    },
+    invertUnfinishedTaskSelection() {
+      const unfinished = this.tasks
+        .filter((task) => !['completed', 'error'].includes(task.status))
+        .map((task) => task.id)
+      const selected = new Set(this.selectedTaskIds)
+      this.selectedTaskIds = unfinished.filter((id) => !selected.has(id))
+    },
     async createPreviewTasks() {
       const run = await createRun({
         model_names: this.selectedModelNames,
         dataset_names: this.selectedDatasetNames,
-        language_code: this.selectedLanguage
+        language_codes: this.selectedLanguageCodes
       })
       this.upsertRun(run)
+    },
+    toggleLanguage(languageCode: string) {
+      if (this.selectedLanguageCodes.includes(languageCode)) {
+        const next = this.selectedLanguageCodes.filter((item) => item !== languageCode)
+        this.selectedLanguageCodes = next.length ? next : ['en']
+        return
+      }
+      this.selectedLanguageCodes.push(languageCode)
     },
     async playQueue() {
       if (!this.currentRun) {
         return
       }
+      const activeTaskIds = this.selectedTaskIds.length
+        ? this.selectedTaskIds
+        : this.tasks.filter((task) => !['completed', 'error'].includes(task.status)).map((task) => task.id)
       const startingRun: BenchmarkRun = {
         ...this.currentRun,
         status: 'starting',
-        tasks: this.currentRun.tasks.map((task, index) => {
-          if (index === 0 && (task.status === 'pending' || task.status === 'paused')) {
+        tasks: this.currentRun.tasks.map((task) => {
+          if (activeTaskIds.includes(task.id) && (task.status === 'pending' || task.status === 'paused' || task.status === 'stopped')) {
             return { ...task, status: 'starting' }
           }
           return task
         })
       }
       this.upsertRun(startingRun)
-      const run = await playRun(this.currentRun.id)
+      const run = await playRun(this.currentRun.id, { task_ids: activeTaskIds })
       this.upsertRun(run)
       this.ensurePolling()
     },

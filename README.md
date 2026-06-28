@@ -16,6 +16,12 @@ username: guest
 password: guest
 ```
 
+Host-side system profiler FastAPI:
+
+```text
+http://127.0.0.1:6346/health
+```
+
 ![LLM Benchmark Studio demo](images/demo-v1.png)
 
 Architecture and flow diagrams:
@@ -258,6 +264,26 @@ Expected behavior:
 - Exported JSON includes benchmark response, judge result, regex judge result, model metadata, dataset metadata, language, timestamps, and task metadata.
 
 ## Docker Compose
+
+The benchmark stack runs in Docker, but the machine monitor runs as a separate host FastAPI service so it can sample the real host CPU, memory, disk, network, and best-effort GPU metrics.
+
+Start the Docker stack:
+
+```bash
+docker compose up --build -d worker backend rabbitmq postgres frontend
+```
+
+Then start the host system profiler:
+
+```bash
+PYTHONPATH=backend python3 -m uvicorn system_profiler.api:app --host 127.0.0.1 --port 6346
+```
+
+The frontend reads profiler data directly from:
+
+```text
+http://127.0.0.1:6346
+```
 
 `docker-compose.yml` starts PostgreSQL, RabbitMQ, the Django backend, and the Vue frontend by default. PostgreSQL listens on `5432` inside Docker and is exposed to the host as `localhost:55432`, so it does not conflict with an existing local `5432`.
 

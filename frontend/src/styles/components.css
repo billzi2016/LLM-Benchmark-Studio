@@ -69,6 +69,32 @@
   border: 1px solid #dde3eb;
   border-radius: 6px;
   padding: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-chart {
+  min-height: 74px;
+}
+
+.metric-chart > span,
+.metric-chart > strong {
+  position: relative;
+  z-index: 1;
+}
+
+.metric-sparkline {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.22;
+}
+
+.metric-sparkline polyline {
+  fill: none;
+  stroke: #1f6feb;
+  stroke-width: 2;
 }
 
 .metric span,
@@ -158,11 +184,20 @@
 .task-controls {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .task-row {
   display: grid;
   gap: 9px;
+}
+
+.task-select-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #637083;
+  font-size: 12px;
 }
 
 .task-row-running {

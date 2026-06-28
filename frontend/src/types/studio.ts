@@ -86,6 +86,12 @@ export interface SystemMetrics {
   }
 }
 
+export interface SystemProfilerHistory {
+  interval_seconds: number
+  window_minutes: number
+  snapshots: SystemMetrics[]
+}
+
 export interface ProviderInfo {
   provider: string
   protocol: string
@@ -130,7 +136,7 @@ export interface StudioTask {
   run_created_at?: string | null
   language_code: string
   needs_translation: boolean
-  task_kind: 'translation' | 'benchmark' | 'translate_then_benchmark'
+  task_kind: 'translation' | 'benchmark'
   status: 'pending' | 'starting' | 'running' | 'paused' | 'completed' | 'stopped' | 'error'
   eta_seconds: number
   model_name: string

@@ -28,22 +28,23 @@ const datasets: DatasetSummary[] = [
 
 describe('overall task queue semantics', () => {
   it('creates one task per language-dataset-model tuple', () => {
-    const tasks = buildPreviewTasks(['model-a', 'model-b'], [datasets[0]], 'fr', 'run-1')
-    expect(tasks).toHaveLength(2)
-    expect(tasks.map((task) => task.id)).toEqual(['run-1-0-0', 'run-1-1-0'])
+    const tasks = buildPreviewTasks(['model-a', 'model-b'], [datasets[0]], ['fr'], 'run-1')
+    expect(tasks).toHaveLength(3)
+    expect(tasks.filter((task) => task.task_kind === 'translation')).toHaveLength(1)
+    expect(tasks.filter((task) => task.task_kind === 'benchmark')).toHaveLength(2)
     expect(tasks.every((task) => task.total_questions === 14042)).toBe(true)
   })
 
   it('marks translation as required when target language differs from source language', () => {
-    const tasks = buildPreviewTasks(['model-a'], datasets, 'fr', 'run-1')
+    const tasks = buildPreviewTasks(['model-a'], datasets, ['fr'], 'run-1')
     expect(tasks[0].needs_translation).toBe(true)
     expect(tasks[0].task_kind).toBe('translation')
-    expect(tasks[1].needs_translation).toBe(false)
-    expect(tasks[1].task_kind).toBe('benchmark')
+    const frenchBenchmarkTask = tasks.find((task) => task.dataset_name === 'french_set' && task.task_kind === 'benchmark')
+    expect(frenchBenchmarkTask?.needs_translation).toBe(false)
   })
 
   it('initializes time tracking fields for each task', () => {
-    const [task] = buildPreviewTasks(['model-a'], [datasets[0]], 'en', 'run-1')
+    const [task] = buildPreviewTasks(['model-a'], [datasets[0]], ['en'], 'run-1')
     expect(task.started_at).toBeNull()
     expect(task.finished_at).toBeNull()
     expect(task.elapsed_seconds).toBe(0)

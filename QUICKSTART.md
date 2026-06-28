@@ -1,6 +1,6 @@
 # Quickstart
 
-This is the shortest path to run the full local stack with the real PostgreSQL + RabbitMQ + Django + Celery + Vue workflow.
+This is the shortest path to run the full local stack with the real PostgreSQL + RabbitMQ + Django + Celery + Vue workflow, plus the host-side FastAPI system profiler.
 
 Default Django admin:
 
@@ -36,7 +36,24 @@ This starts:
 - `worker`
 - `frontend`
 
-## 3. Open the UI
+## 3. Start the Host System Profiler
+
+Run the system profiler on the host machine, outside Docker:
+
+```bash
+PYTHONPATH=backend python3 -m uvicorn system_profiler.api:app --host 127.0.0.1 --port 6346
+```
+
+This service exposes:
+
+- `http://127.0.0.1:6346/health`
+- `http://127.0.0.1:6346/snapshot`
+- `http://127.0.0.1:6346/history`
+- `http://127.0.0.1:6346/stream`
+
+The Vue frontend reads system metrics directly from this FastAPI service.
+
+## 4. Open the UI
 
 After startup:
 
@@ -45,6 +62,7 @@ After startup:
 - Swagger: `http://localhost:6341/api/docs`
 - OpenAPI JSON: `http://localhost:6341/api/openapi.json`
 - RabbitMQ UI: `http://localhost:15672`
+- System profiler health: `http://127.0.0.1:6346/health`
 
 Default RabbitMQ credentials:
 
@@ -52,7 +70,7 @@ Default RabbitMQ credentials:
 guest / guest
 ```
 
-## 4. Check Logs
+## 5. Check Logs
 
 Project logs are written to:
 
@@ -84,7 +102,7 @@ YYYYMMDD-HHMMSS-rabbitmq-sasl.log
 YYYYMMDD-HHMMSS-llm_walltime.log
 ```
 
-## 5. Run Database Migrations Manually
+## 6. Run Database Migrations Manually
 
 Backend startup already runs migrations automatically.
 
@@ -94,7 +112,7 @@ If you want to run them yourself:
 docker compose exec backend python manage.py migrate
 ```
 
-## 6. Restart One Service
+## 7. Restart One Service
 
 Examples:
 
@@ -104,7 +122,7 @@ docker compose restart worker
 docker compose restart frontend
 ```
 
-## 7. Stop Everything
+## 8. Stop Everything
 
 Stop services and keep data:
 
@@ -118,7 +136,7 @@ Stop services and remove volumes:
 docker compose down -v
 ```
 
-## 8. Verify the Worker Is Alive
+## 9. Verify the Worker Is Alive
 
 Check service state:
 

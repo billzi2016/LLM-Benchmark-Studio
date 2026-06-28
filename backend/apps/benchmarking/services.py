@@ -21,7 +21,7 @@ from apps.llms.providers import get_provider
 class RunSelection:
     model_names: list[str]
     dataset_names: list[str]
-    language_code: str
+    language_codes: list[str]
 
 
 def _language_map() -> dict[str, dict[str, Any]]:
@@ -196,7 +196,8 @@ def _judge_answer(
         "judge_provider": judge_provider,
         "judge_model": judge_model,
         "match": bool(parsed.get("match", regex_match)),
-        "normalized_model_answer": parsed.get("normalized_model_answer") or _normalize_final_answer(model_answer, valid_values),
+        "normalized_model_answer": parsed.get("normalized_model_answer")
+        or _normalize_final_answer(model_answer, valid_values),
         "reason": str(parsed.get("reason") or ""),
         "raw_response": response,
         "parsed": parsed,
@@ -233,7 +234,7 @@ def serialize_task(task: BenchmarkTask, run_created_at: datetime | None = None) 
 def serialize_run(run: BenchmarkRun) -> dict[str, Any]:
     tasks = [
         serialize_task(task, run.created_at)
-        for task in run.tasks.all().order_by("-needs_translation", "model_group_order", "dataset_order")
+        for task in run.tasks.all().order_by("model_group_order", "dataset_order", "language_code", "created_at")
     ]
     return {
         "id": str(run.id),
@@ -271,77 +272,140 @@ def _clone_existing_completed_results(source_task: BenchmarkTask, target_task: B
         QuestionResult.objects.bulk_create(cloned_results)
 
 
+def _apply_completed_clone(task: BenchmarkTask, cloned_from: BenchmarkTask) -> None:
+    task.status = RunStatus.COMPLETED
+    task.completed_questions = cloned_from.completed_questions
+    task.progress_percent = 100
+    task.eta_seconds = 0
+    task.started_at = cloned_from.started_at or django_timezone.now()
+    task.finished_at = cloned_from.finished_at or django_timezone.now()
+    task.elapsed_seconds = cloned_from.elapsed_seconds
+    task.walltime_seconds = cloned_from.walltime_seconds
+    task.save(
+        update_fields=[
+            "status",
+            "completed_questions",
+            "progress_percent",
+            "eta_seconds",
+            "started_at",
+            "finished_at",
+            "elapsed_seconds",
+            "walltime_seconds",
+            "updated_at",
+        ]
+    )
+    _clone_existing_completed_results(cloned_from, task)
+
+
 @transaction.atomic
 def create_run(selection: RunSelection) -> BenchmarkRun:
     datasets = _dataset_map()
     languages = _language_map()
-    if selection.language_code not in languages:
-        raise ValueError(f"Unknown language: {selection.language_code}")
+    language_codes = list(dict.fromkeys(selection.language_codes))
+    if not language_codes:
+        raise ValueError("At least one language is required.")
+    unknown_languages = [code for code in language_codes if code not in languages]
+    if unknown_languages:
+        raise ValueError(f"Unknown languages: {', '.join(unknown_languages)}")
     missing_datasets = [name for name in selection.dataset_names if name not in datasets]
     if missing_datasets:
         raise ValueError(f"Unknown datasets: {', '.join(missing_datasets)}")
+
+    dataset_order_map = {name: index for index, name in enumerate(selection.dataset_names)}
+    translation_specs: list[tuple[str, dict[str, Any], int]] = []
+    benchmark_specs: list[tuple[str, dict[str, Any], int, str, int]] = []
+
+    for language_code in language_codes:
+        for dataset_name in selection.dataset_names:
+            dataset = datasets[dataset_name]
+            if str(dataset.get("source_language")) != language_code:
+                translation_specs.append((language_code, dataset, dataset_order_map[dataset_name]))
+        for model_index, model_name in enumerate(selection.model_names):
+            for dataset_name in selection.dataset_names:
+                benchmark_specs.append(
+                    (
+                        model_name,
+                        datasets[dataset_name],
+                        model_index,
+                        language_code,
+                        dataset_order_map[dataset_name],
+                    )
+                )
+
     run = BenchmarkRun.objects.create(
-        language_code=selection.language_code,
+        language_code=language_codes[0] if len(language_codes) == 1 else "multi",
         provider_name=settings.DEFAULT_PROVIDER,
         judge_provider=settings.JUDGE_PROVIDER,
         judge_model=settings.JUDGE_MODEL,
         translate_provider=settings.TRANSLATE_PROVIDER,
         translate_model=settings.TRANSLATE_MODEL,
-        total_tasks=len(selection.model_names) * len(selection.dataset_names),
+        total_tasks=len(translation_specs) + len(benchmark_specs),
     )
+
     completed_task_count = 0
-    for model_index, model_name in enumerate(selection.model_names):
-        for dataset_index, dataset_name in enumerate(selection.dataset_names):
-            dataset = datasets[dataset_name]
-            needs_translation = str(dataset.get("source_language")) != selection.language_code
-            cloned_from = (
-                BenchmarkTask.objects.filter(
-                    status=RunStatus.COMPLETED,
-                    model_name=model_name,
-                    dataset_name=dataset_name,
-                    language_code=selection.language_code,
-                )
-                .prefetch_related("results")
-                .order_by("-finished_at", "-updated_at")
-                .first()
+    for language_code, dataset, dataset_order in translation_specs:
+        dataset_name = str(dataset["dataset_name"])
+        translation_task = BenchmarkTask.objects.create(
+            run=run,
+            model_name=settings.TRANSLATE_MODEL,
+            dataset_name=dataset_name,
+            dataset_display_name=str(dataset.get("display_name") or dataset_name),
+            language_code=language_code,
+            source_language=str(dataset.get("source_language") or "en"),
+            needs_translation=True,
+            task_kind=TaskKind.TRANSLATION,
+            total_questions=int(dataset.get("question_count") or 0),
+            model_group_order=0,
+            dataset_order=dataset_order,
+        )
+        cloned_from = (
+            BenchmarkTask.objects.filter(
+                status=RunStatus.COMPLETED,
+                task_kind=TaskKind.TRANSLATION,
+                model_name=settings.TRANSLATE_MODEL,
+                dataset_name=dataset_name,
+                language_code=language_code,
             )
-            task = BenchmarkTask.objects.create(
-                run=run,
+            .prefetch_related("results")
+            .order_by("-finished_at", "-updated_at")
+            .first()
+        )
+        if cloned_from:
+            _apply_completed_clone(translation_task, cloned_from)
+            completed_task_count += 1
+
+    translation_offset = len(translation_specs) + 1
+    for model_name, dataset, model_index, language_code, dataset_order in benchmark_specs:
+        dataset_name = str(dataset["dataset_name"])
+        benchmark_task = BenchmarkTask.objects.create(
+            run=run,
+            model_name=model_name,
+            dataset_name=dataset_name,
+            dataset_display_name=str(dataset.get("display_name") or dataset_name),
+            language_code=language_code,
+            source_language=str(dataset.get("source_language") or "en"),
+            needs_translation=str(dataset.get("source_language")) != language_code,
+            task_kind=TaskKind.BENCHMARK,
+            total_questions=int(dataset.get("question_count") or 0),
+            model_group_order=translation_offset + model_index,
+            dataset_order=dataset_order,
+        )
+        cloned_from = (
+            BenchmarkTask.objects.filter(
+                status=RunStatus.COMPLETED,
+                task_kind=TaskKind.BENCHMARK,
                 model_name=model_name,
                 dataset_name=dataset_name,
-                dataset_display_name=str(dataset.get("display_name") or dataset_name),
-                language_code=selection.language_code,
-                source_language=str(dataset.get("source_language") or "en"),
-                needs_translation=needs_translation,
-                task_kind=TaskKind.TRANSLATE_THEN_BENCHMARK if needs_translation else TaskKind.BENCHMARK,
-                total_questions=int(dataset.get("question_count") or 0),
-                model_group_order=model_index,
-                dataset_order=dataset_index,
+                language_code=language_code,
             )
-            if cloned_from:
-                task.status = RunStatus.COMPLETED
-                task.completed_questions = cloned_from.completed_questions
-                task.progress_percent = 100
-                task.eta_seconds = 0
-                task.started_at = cloned_from.started_at or django_timezone.now()
-                task.finished_at = cloned_from.finished_at or django_timezone.now()
-                task.elapsed_seconds = cloned_from.elapsed_seconds
-                task.walltime_seconds = cloned_from.walltime_seconds
-                task.save(
-                    update_fields=[
-                        "status",
-                        "completed_questions",
-                        "progress_percent",
-                        "eta_seconds",
-                        "started_at",
-                        "finished_at",
-                        "elapsed_seconds",
-                        "walltime_seconds",
-                        "updated_at",
-                    ]
-                )
-                _clone_existing_completed_results(cloned_from, task)
-                completed_task_count += 1
+            .prefetch_related("results")
+            .order_by("-finished_at", "-updated_at")
+            .first()
+        )
+        if cloned_from:
+            _apply_completed_clone(benchmark_task, cloned_from)
+            completed_task_count += 1
+
     run.completed_tasks = completed_task_count
     if completed_task_count == run.total_tasks and run.total_tasks > 0:
         run.status = RunStatus.COMPLETED
@@ -360,7 +424,9 @@ def create_run(selection: RunSelection) -> BenchmarkRun:
 
 
 def _update_task_progress(task: BenchmarkTask) -> None:
-    task.progress_percent = 0 if task.total_questions == 0 else round((task.completed_questions / task.total_questions) * 100)
+    task.progress_percent = (
+        0 if task.total_questions == 0 else round((task.completed_questions / task.total_questions) * 100)
+    )
     remaining = max(0, task.total_questions - task.completed_questions)
     average_seconds = task.elapsed_seconds / max(task.completed_questions, 1)
     task.eta_seconds = int(round(remaining * average_seconds)) if task.completed_questions else 0
@@ -376,7 +442,7 @@ def _mark_run_status_from_tasks(run: BenchmarkRun) -> None:
     run.save(update_fields=["completed_tasks", "status", "finished_at", "updated_at"])
 
 
-def execute_run(run_id: str) -> BenchmarkRun:
+def execute_run(run_id: str, task_ids: list[str] | None = None) -> BenchmarkRun:
     run = BenchmarkRun.objects.prefetch_related("tasks").get(id=run_id)
     if run.status == RunStatus.COMPLETED:
         return run
@@ -386,8 +452,11 @@ def execute_run(run_id: str) -> BenchmarkRun:
     run.error_message = ""
     run.save(update_fields=["started_at", "status", "error_message", "updated_at"])
 
+    task_queryset = run.tasks.all()
+    if task_ids:
+        task_queryset = task_queryset.filter(id__in=task_ids)
     ordered_tasks = list(
-        run.tasks.all().order_by("-needs_translation", "model_group_order", "dataset_order", "created_at")
+        task_queryset.order_by("model_group_order", "dataset_order", "language_code", "created_at")
     )
     try:
         for task in ordered_tasks:
@@ -412,11 +481,7 @@ def execute_run(run_id: str) -> BenchmarkRun:
     return BenchmarkRun.objects.prefetch_related("tasks").get(id=run.id)
 
 
-def _execute_task(run: BenchmarkRun, task_id: Any) -> None:
-    task = BenchmarkTask.objects.get(id=task_id)
-    dataset = load_dataset(settings.BENCHMARK_DATASETS_DIR, task.dataset_name)
-    source = dataset["source"]
-    questions = [item for item in dataset["questions"] if item.get("activate", True)]
+def _begin_task(run: BenchmarkRun, task: BenchmarkTask, questions: list[dict[str, Any]]) -> None:
     if task.total_questions != len(questions):
         task.total_questions = len(questions)
         task.save(update_fields=["total_questions", "updated_at"])
@@ -426,23 +491,150 @@ def _execute_task(run: BenchmarkRun, task_id: Any) -> None:
     task.error_message = ""
     task.save(update_fields=["started_at", "status", "error_message", "updated_at"])
 
-    valid_values = list((source.get("answer_format") or {}).get("valid_values") or [])
-    existing_results = {
-        result.sample_id
-        for result in QuestionResult.objects.filter(task=task).only("sample_id")
+
+def _handle_run_pause_stop(run: BenchmarkRun, task: BenchmarkTask) -> bool:
+    run.refresh_from_db()
+    task.refresh_from_db()
+    if run.status == RunStatus.PAUSED:
+        task.status = RunStatus.PAUSED
+        task.save(update_fields=["status", "updated_at"])
+        return True
+    if run.status == RunStatus.STOPPED:
+        task.status = RunStatus.STOPPED
+        task.finished_at = django_timezone.now()
+        task.save(update_fields=["status", "finished_at", "updated_at"])
+        return True
+    return False
+
+
+def _complete_task(run: BenchmarkRun, task: BenchmarkTask) -> None:
+    task.refresh_from_db()
+    task.status = RunStatus.COMPLETED
+    task.finished_at = django_timezone.now()
+    if task.started_at:
+        task.elapsed_seconds = int((task.finished_at - task.started_at).total_seconds())
+        task.walltime_seconds = task.elapsed_seconds
+    task.completed_questions = QuestionResult.objects.filter(task=task).count()
+    task.progress_percent = 100
+    task.eta_seconds = 0
+    task.save(
+        update_fields=[
+            "status",
+            "finished_at",
+            "elapsed_seconds",
+            "walltime_seconds",
+            "completed_questions",
+            "progress_percent",
+            "eta_seconds",
+            "updated_at",
+        ]
+    )
+    run.refresh_from_db()
+    run.completed_tasks = run.tasks.filter(status=RunStatus.COMPLETED).count()
+    run.save(update_fields=["completed_tasks", "updated_at"])
+
+
+def _execute_task(run: BenchmarkRun, task_id: Any) -> None:
+    task = BenchmarkTask.objects.get(id=task_id)
+    if task.task_kind == TaskKind.TRANSLATION:
+        _execute_translation_task(run, task)
+        return
+    _execute_benchmark_task(run, task)
+
+
+def _execute_translation_task(run: BenchmarkRun, task: BenchmarkTask) -> None:
+    dataset = load_dataset(settings.BENCHMARK_DATASETS_DIR, task.dataset_name)
+    questions = [item for item in dataset["questions"] if item.get("activate", True)]
+    _begin_task(run, task, questions)
+
+    existing_results = {result.sample_id for result in QuestionResult.objects.filter(task=task).only("sample_id")}
+    for question_index, item in enumerate(questions):
+        if _handle_run_pause_stop(run, task):
+            return
+        sample_id = str(item["sample_id"])
+        if sample_id in existing_results:
+            continue
+        question = item["question"]
+        question_stem = str(question["question_stem"])
+        options = {str(key): str(value) for key, value in dict(question["options"]).items()}
+        translated_question = _translate_question(
+            provider_name=run.translate_provider,
+            model_name=run.translate_model,
+            source_language=task.source_language,
+            target_language=task.language_code,
+            question_stem=question_stem,
+            options=options,
+        )
+        QuestionResult.objects.create(
+            task=task,
+            sample_id=sample_id,
+            question_index=question_index,
+            prompt_text=_build_translation_prompt(
+                source_language=task.source_language,
+                target_language=task.language_code,
+                question_stem=question_stem,
+                options=options,
+            ),
+            translated_question={
+                "question_stem": translated_question["question_stem"],
+                "options": translated_question["options"],
+            },
+            llm_response=translated_question["raw_response"],
+            llm_judge={},
+            regex_judge=[],
+        )
+        task.completed_questions = QuestionResult.objects.filter(task=task).count()
+        if task.started_at:
+            elapsed = int((django_timezone.now() - task.started_at).total_seconds())
+            task.elapsed_seconds = max(0, elapsed)
+            task.walltime_seconds = task.elapsed_seconds
+        _update_task_progress(task)
+        task.save(
+            update_fields=[
+                "completed_questions",
+                "elapsed_seconds",
+                "walltime_seconds",
+                "progress_percent",
+                "eta_seconds",
+                "updated_at",
+            ]
+        )
+    _complete_task(run, task)
+
+
+def _translation_result_map(run: BenchmarkRun, task: BenchmarkTask) -> dict[str, dict[str, Any]]:
+    translation_task = (
+        BenchmarkTask.objects.filter(
+            run=run,
+            task_kind=TaskKind.TRANSLATION,
+            dataset_name=task.dataset_name,
+            language_code=task.language_code,
+            status=RunStatus.COMPLETED,
+        )
+        .prefetch_related("results")
+        .first()
+    )
+    if not translation_task:
+        raise RuntimeError(f"Missing translation task for {task.dataset_name}:{task.language_code}")
+    return {
+        result.sample_id: dict(result.translated_question or {})
+        for result in translation_task.results.all()
+        if result.translated_question
     }
 
+
+def _execute_benchmark_task(run: BenchmarkRun, task: BenchmarkTask) -> None:
+    dataset = load_dataset(settings.BENCHMARK_DATASETS_DIR, task.dataset_name)
+    source = dataset["source"]
+    questions = [item for item in dataset["questions"] if item.get("activate", True)]
+    _begin_task(run, task, questions)
+
+    valid_values = list((source.get("answer_format") or {}).get("valid_values") or [])
+    existing_results = {result.sample_id for result in QuestionResult.objects.filter(task=task).only("sample_id")}
+    translated_map = _translation_result_map(run, task) if task.needs_translation else {}
+
     for question_index, item in enumerate(questions):
-        run.refresh_from_db()
-        task.refresh_from_db()
-        if run.status == RunStatus.PAUSED:
-            task.status = RunStatus.PAUSED
-            task.save(update_fields=["status", "updated_at"])
-            return
-        if run.status == RunStatus.STOPPED:
-            task.status = RunStatus.STOPPED
-            task.finished_at = django_timezone.now()
-            task.save(update_fields=["status", "finished_at", "updated_at"])
+        if _handle_run_pause_stop(run, task):
             return
         sample_id = str(item["sample_id"])
         if sample_id in existing_results:
@@ -454,16 +646,16 @@ def _execute_task(run: BenchmarkRun, task_id: Any) -> None:
         runtime_stem = question_stem
         runtime_options = options
         if task.needs_translation:
-            translated_question = _translate_question(
-                provider_name=run.translate_provider,
-                model_name=run.translate_model,
-                source_language=task.source_language,
-                target_language=task.language_code,
-                question_stem=question_stem,
-                options=options,
-            )
-            runtime_stem = translated_question["question_stem"]
-            runtime_options = translated_question["options"]
+            translated_question = translated_map.get(sample_id)
+            if not translated_question:
+                raise RuntimeError(
+                    f"Missing translated question for {task.dataset_name}:{sample_id}:{task.language_code}"
+                )
+            runtime_stem = str(translated_question.get("question_stem") or question_stem)
+            runtime_options = {
+                str(key): str(value)
+                for key, value in dict(translated_question.get("options") or options).items()
+            }
 
         prompt_text = str(source["benchmark_prompt"]).format(
             question=runtime_stem,
@@ -505,7 +697,6 @@ def _execute_task(run: BenchmarkRun, task_id: Any) -> None:
             model_answer=final_answer,
             valid_values=valid_values,
         )
-
         QuestionResult.objects.create(
             task=task,
             sample_id=sample_id,
@@ -532,27 +723,4 @@ def _execute_task(run: BenchmarkRun, task_id: Any) -> None:
                 "updated_at",
             ]
         )
-    task.refresh_from_db()
-    task.status = RunStatus.COMPLETED
-    task.finished_at = django_timezone.now()
-    if task.started_at:
-        task.elapsed_seconds = int((task.finished_at - task.started_at).total_seconds())
-        task.walltime_seconds = task.elapsed_seconds
-    task.completed_questions = QuestionResult.objects.filter(task=task).count()
-    task.progress_percent = 100
-    task.eta_seconds = 0
-    task.save(
-        update_fields=[
-            "status",
-            "finished_at",
-            "elapsed_seconds",
-            "walltime_seconds",
-            "completed_questions",
-            "progress_percent",
-            "eta_seconds",
-            "updated_at",
-        ]
-    )
-    run.refresh_from_db()
-    run.completed_tasks = run.tasks.filter(status=RunStatus.COMPLETED).count()
-    run.save(update_fields=["completed_tasks", "updated_at"])
+    _complete_task(run, task)

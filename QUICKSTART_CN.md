@@ -1,6 +1,6 @@
 # 快速启动
 
-这是当前项目最短的可运行路径，直接启动真实的 PostgreSQL + RabbitMQ + Django + Celery + Vue 全链路。
+这是当前项目最短的可运行路径，直接启动真实的 PostgreSQL + RabbitMQ + Django + Celery + Vue 全链路，再加上宿主机侧的 FastAPI system profiler。
 
 默认 Django admin：
 
@@ -36,7 +36,24 @@ docker compose up --build -d worker backend rabbitmq postgres frontend
 - `worker`
 - `frontend`
 
-## 3. 打开页面
+## 3. 启动宿主机 System Profiler
+
+这个服务不要放进 Docker。直接在宿主机启动：
+
+```bash
+PYTHONPATH=backend python3 -m uvicorn system_profiler.api:app --host 127.0.0.1 --port 6346
+```
+
+它会提供这些接口：
+
+- `http://127.0.0.1:6346/health`
+- `http://127.0.0.1:6346/snapshot`
+- `http://127.0.0.1:6346/history`
+- `http://127.0.0.1:6346/stream`
+
+Vue 前端会直接读取这个 FastAPI 服务的系统监控数据。
+
+## 4. 打开页面
 
 启动完成后访问：
 
@@ -45,6 +62,7 @@ docker compose up --build -d worker backend rabbitmq postgres frontend
 - Swagger：`http://localhost:6341/api/docs`
 - OpenAPI JSON：`http://localhost:6341/api/openapi.json`
 - RabbitMQ 管理页面：`http://localhost:15672`
+- System profiler health：`http://127.0.0.1:6346/health`
 
 RabbitMQ 默认账号密码：
 
@@ -52,7 +70,7 @@ RabbitMQ 默认账号密码：
 guest / guest
 ```
 
-## 4. 看日志
+## 5. 看日志
 
 项目日志会写到：
 
@@ -84,7 +102,7 @@ YYYYMMDD-HHMMSS-rabbitmq-sasl.log
 YYYYMMDD-HHMMSS-llm_walltime.log
 ```
 
-## 5. 手动执行数据库迁移
+## 6. 手动执行数据库迁移
 
 backend 启动时已经会自动执行迁移。
 
@@ -94,7 +112,7 @@ backend 启动时已经会自动执行迁移。
 docker compose exec backend python manage.py migrate
 ```
 
-## 6. 单独重启某个服务
+## 7. 单独重启某个服务
 
 例如：
 
@@ -104,7 +122,7 @@ docker compose restart worker
 docker compose restart frontend
 ```
 
-## 7. 停止服务
+## 8. 停止服务
 
 停止服务但保留数据：
 
@@ -118,7 +136,7 @@ docker compose down
 docker compose down -v
 ```
 
-## 8. 确认 Worker 真的活着
+## 9. 确认 Worker 真的活着
 
 先看服务状态：
 

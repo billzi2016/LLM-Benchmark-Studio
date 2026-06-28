@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 from django.test import TestCase
 
 from apps.benchmarking.models import BenchmarkRun, QuestionResult
+from apps.benchmarking.services import execute_run
 
 
 class BenchmarkingApiTests(TestCase):
@@ -52,15 +54,22 @@ class BenchmarkingApiTests(TestCase):
 
         response = self.client.post(
             "/api/tasks/runs",
-            data='{"model_names":["gpt-oss:20b"],"dataset_names":["english_set","french_set"],"language_code":"fr"}',
+            data=json.dumps(
+                {
+                    "model_names": ["gpt-oss:20b"],
+                    "dataset_names": ["english_set", "french_set"],
+                    "language_codes": ["fr"],
+                }
+            ),
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
         tasks = response.json()["data"]["tasks"]
+        self.assertEqual(tasks[0]["task_kind"], "translation")
         self.assertEqual(tasks[0]["dataset_name"], "english_set")
-        self.assertTrue(tasks[0]["needs_translation"])
-        self.assertEqual(tasks[1]["dataset_name"], "french_set")
-        self.assertFalse(tasks[1]["needs_translation"])
+        self.assertEqual(tasks[1]["task_kind"], "benchmark")
+        self.assertEqual(tasks[2]["task_kind"], "benchmark")
 
     @patch("apps.benchmarking.services.get_provider")
     @patch("apps.benchmarking.services.load_dataset")
@@ -109,17 +118,26 @@ class BenchmarkingApiTests(TestCase):
 
         create_response = self.client.post(
             "/api/tasks/runs",
-            data='{"model_names":["gpt-oss:20b"],"dataset_names":["toyset"],"language_code":"en"}',
+            data=json.dumps(
+                {
+                    "model_names": ["gpt-oss:20b"],
+                    "dataset_names": ["toyset"],
+                    "language_codes": ["en"],
+                }
+            ),
+            content_type="application/json",
         )
         run_id = create_response.json()["data"]["id"]
 
-        play_response = self.client.post(f"/api/tasks/runs/{run_id}/play")
+        execute_run(run_id)
+        play_response = self.client.get(f"/api/tasks/runs/{run_id}")
 
         self.assertEqual(play_response.status_code, 200)
         payload = play_response.json()["data"]
         self.assertEqual(payload["status"], "completed")
-        self.assertEqual(payload["tasks"][0]["status"], "completed")
-        self.assertEqual(payload["tasks"][0]["completed_questions"], 1)
+        benchmark_task = next(task for task in payload["tasks"] if task["task_kind"] == "benchmark")
+        self.assertEqual(benchmark_task["status"], "completed")
+        self.assertEqual(benchmark_task["completed_questions"], 1)
         self.assertEqual(QuestionResult.objects.count(), 1)
         run = BenchmarkRun.objects.get(id=run_id)
         self.assertEqual(run.completed_tasks, 1)
@@ -175,15 +193,23 @@ class BenchmarkingApiTests(TestCase):
 
         response = self.client.post(
             "/api/tasks/runs",
-            data='{"model_names":["gpt-oss:20b"],"dataset_names":["toyset"],"language_code":"en"}',
+            data=json.dumps(
+                {
+                    "model_names": ["gpt-oss:20b"],
+                    "dataset_names": ["toyset"],
+                    "language_codes": ["en"],
+                }
+            ),
+            content_type="application/json",
         )
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()["data"]
         self.assertEqual(payload["status"], "completed")
         self.assertEqual(payload["completed_tasks"], 1)
-        self.assertEqual(payload["tasks"][0]["status"], "completed")
-        self.assertEqual(payload["tasks"][0]["completed_questions"], 1)
+        benchmark_task = next(task for task in payload["tasks"] if task["task_kind"] == "benchmark")
+        self.assertEqual(benchmark_task["status"], "completed")
+        self.assertEqual(benchmark_task["completed_questions"], 1)
         self.assertEqual(QuestionResult.objects.count(), 2)
 
     def test_list_runs_includes_completed_history(self) -> None:
@@ -224,7 +250,7 @@ class BenchmarkingApiTests(TestCase):
         )
         second.tasks.create(
             status="pending",
-            task_kind="translate_then_benchmark",
+            task_kind="translation",
             model_name="gpt-oss:20b",
             dataset_name="mmlu",
             dataset_display_name="MMLU",

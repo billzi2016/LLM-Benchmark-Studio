@@ -16,6 +16,12 @@ http://localhost:6341/admin
 密码: guest
 ```
 
+宿主机侧 system profiler FastAPI：
+
+```text
+http://127.0.0.1:6346/health
+```
+
 ![LLM Benchmark Studio 界面截图](images/demo-v1.png)
 
 中文架构和流程图：
@@ -72,7 +78,9 @@ POSTGRES_PORT=5432
 POSTGRES_HOST_PORT=55432
 ```
 
-在项目根目录运行：
+测评主栈跑在 Docker 里，但系统监控不放进 Docker。`backend/system_profiler` 现在作为一个单独的宿主机 FastAPI 服务启动，这样前端才能读取更接近真实机器的 CPU、内存、磁盘、网络和尽力而为的 GPU 指标。
+
+先在项目根目录运行：
 
 ```bash
 docker compose up --build
@@ -84,6 +92,12 @@ docker compose up --build
 docker compose up --build -d
 ```
 
+然后在宿主机启动 system profiler：
+
+```bash
+PYTHONPATH=backend python3 -m uvicorn system_profiler.api:app --host 127.0.0.1 --port 6346
+```
+
 启动后访问：
 
 ```text
@@ -91,6 +105,7 @@ docker compose up --build -d
 后端: http://localhost:6341/api/system/status
 Swagger: http://localhost:6341/api/docs
 OpenAPI JSON: http://localhost:6341/api/openapi.json
+System profiler: http://127.0.0.1:6346/health
 ```
 
 ![Swagger OpenAPI 文档](images/swagger-openapi.png)
