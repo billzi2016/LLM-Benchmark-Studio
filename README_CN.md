@@ -2,6 +2,20 @@
 
 LLM Benchmark Studio 是一个本地优先的 LLM 测评系统，规划由五部分组成：
 
+最短可运行路径先看：
+
+```text
+QUICKSTART_CN.md
+```
+
+默认 Django admin：
+
+```text
+http://localhost:6341/admin
+用户名: guest
+密码: guest
+```
+
 ![LLM Benchmark Studio 界面截图](images/demo-v1.png)
 
 中文架构和流程图：
@@ -108,6 +122,26 @@ PostgreSQL 数据默认持久化在当前项目目录：
 ```
 
 这个目录已加入 `.gitignore`。`docker compose down` 会保留数据库数据；如果需要彻底清空 PostgreSQL，先停止 compose，再手动删除 `.docker/postgres/data/`。
+
+日志默认保存到当前项目目录：
+
+```text
+logs/
+```
+
+命名规则：
+
+```text
+YYYYMMDD-HHMMSS-backend.log
+YYYYMMDD-HHMMSS-worker.log
+YYYYMMDD-HHMMSS-frontend.log
+YYYYMMDD-HHMMSS-postgres.log
+YYYYMMDD-HHMMSS-rabbitmq.log
+YYYYMMDD-HHMMSS-rabbitmq-sasl.log
+YYYYMMDD-HHMMSS-llm_walltime.log
+```
+
+其中 `llm_walltime` 是模型真实运行耗时日志，单行记录 provider、model、任务类型、数据集、语言、开始时间、结束时间、elapsed seconds 和 walltime seconds。
 
 如果不用 compose PostgreSQL，而是连接你手动启动的本机 PostgreSQL，把 `.env` 改成：
 

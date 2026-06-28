@@ -40,7 +40,8 @@ data/benchmark_datasets/*.json
 
 # Logs and exports
 *.log
-logs/
+logs/*.log
+!logs/.gitkeep
 exports/
 
 # Docker runtime data

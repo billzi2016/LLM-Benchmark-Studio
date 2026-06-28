@@ -12,6 +12,9 @@ export function buildPreviewTasks(
       run_group_id: runGroupId,
       language_code: selectedLanguage,
       needs_translation: dataset.source_language !== selectedLanguage,
+      task_kind: dataset.source_language !== selectedLanguage ? 'translation' : 'benchmark',
+      status: 'pending',
+      eta_seconds: 0,
       model_name: modelName,
       dataset_name: dataset.dataset_name,
       dataset_display_name: dataset.display_name,
@@ -19,7 +22,11 @@ export function buildPreviewTasks(
       completed_questions: 0,
       model_group_order: modelIndex,
       dataset_order: datasetIndex,
-      progress_percent: 0
+      progress_percent: 0,
+      started_at: null,
+      finished_at: null,
+      elapsed_seconds: 0,
+      walltime_seconds: 0
     }))
   )
 }

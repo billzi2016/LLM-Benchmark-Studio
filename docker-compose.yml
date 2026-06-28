@@ -1,6 +1,20 @@
 services:
   postgres:
     image: postgres:16
+    command:
+      - postgres
+      - -c
+      - logging_collector=on
+      - -c
+      - log_directory=/logs
+      - -c
+      - log_filename=%Y%m%d-%H%M%S-postgres.log
+      - -c
+      - log_truncate_on_rotation=off
+      - -c
+      - log_rotation_age=0
+      - -c
+      - log_rotation_size=0
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-llm_benchmark_studio}
       POSTGRES_USER: ${POSTGRES_USER:-llm_benchmark}
@@ -9,6 +23,7 @@ services:
       - "${POSTGRES_HOST_PORT:-55432}:5432"
     volumes:
       - ./.docker/postgres/data:/var/lib/postgresql/data
+      - ./logs:/logs
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-llm_benchmark} -d ${POSTGRES_DB:-llm_benchmark_studio}"]
       interval: 10s
@@ -17,6 +32,13 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management
+    command: >
+      sh -lc '
+      stamp=$$(date +%Y%m%d-%H%M%S);
+      export RABBITMQ_LOGS=/logs/$${stamp}-rabbitmq.log;
+      export RABBITMQ_SASL_LOGS=/logs/$${stamp}-rabbitmq-sasl.log;
+      exec docker-entrypoint.sh rabbitmq-server
+      '
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
@@ -26,6 +48,7 @@ services:
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./logs:/logs
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -34,13 +57,27 @@ services:
 
   backend:
     build: .
-    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    command: >
+      sh -lc '
+      set -e;
+      stamp=$$(date +%Y%m%d-%H%M%S);
+      export SERVICE_NAME=backend;
+      export SERVICE_LOG_PATH=/logs/$${stamp}-backend.log;
+      export LLM_WALLTIME_LOG_PATH=/logs/$${stamp}-llm_walltime.log;
+      mkdir -p /logs;
+      python manage.py migrate 2>&1 | tee -a "$$SERVICE_LOG_PATH";
+      python manage.py ensure_default_admin 2>&1 | tee -a "$$SERVICE_LOG_PATH";
+      python manage.py runserver 0.0.0.0:8000 2>&1 | tee -a "$$SERVICE_LOG_PATH"
+      '
     working_dir: /app/backend
     env_file:
       - .env
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.local
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,backend}
+      DJANGO_DEFAULT_ADMIN_USERNAME: ${DJANGO_DEFAULT_ADMIN_USERNAME:-guest}
+      DJANGO_DEFAULT_ADMIN_PASSWORD: ${DJANGO_DEFAULT_ADMIN_PASSWORD:-guest}
+      DJANGO_DEFAULT_ADMIN_EMAIL: ${DJANGO_DEFAULT_ADMIN_EMAIL:-guest@example.com}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       RABBITMQ_HOST: rabbitmq
@@ -63,6 +100,53 @@ services:
       - "${DJANGO_PORT:-6341}:8000"
     volumes:
       - .:/app
+      - ./logs:/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: >
+      sh -lc '
+      set -e;
+      stamp=$$(date +%Y%m%d-%H%M%S);
+      export SERVICE_NAME=worker;
+      export SERVICE_LOG_PATH=/logs/$${stamp}-worker.log;
+      export LLM_WALLTIME_LOG_PATH=/logs/$${stamp}-llm_walltime.log;
+      mkdir -p /logs;
+      celery -A config worker --loglevel=INFO --concurrency=1 2>&1 | tee -a "$$SERVICE_LOG_PATH"
+      '
+    working_dir: /app/backend
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.local
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,backend}
+      DJANGO_DEFAULT_ADMIN_USERNAME: ${DJANGO_DEFAULT_ADMIN_USERNAME:-guest}
+      DJANGO_DEFAULT_ADMIN_PASSWORD: ${DJANGO_DEFAULT_ADMIN_PASSWORD:-guest}
+      DJANGO_DEFAULT_ADMIN_EMAIL: ${DJANGO_DEFAULT_ADMIN_EMAIL:-guest@example.com}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
+      CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
+      VLLM_HOST: ${VLLM_HOST:-localhost}
+      VLLM_PORT: ${VLLM_PORT:-8000}
+      VLLM_BASE_URL: ${VLLM_BASE_URL:-http://localhost:8000/v1}
+      SGLANG_HOST: ${SGLANG_HOST:-localhost}
+      SGLANG_PORT: ${SGLANG_PORT:-30000}
+      SGLANG_BASE_URL: ${SGLANG_BASE_URL:-http://localhost:30000/v1}
+      OPENAI_COMPATIBLE_HOST: ${OPENAI_COMPATIBLE_HOST:-localhost}
+      OPENAI_COMPATIBLE_PORT: ${OPENAI_COMPATIBLE_PORT:-6328}
+      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-http://localhost:6328/v1}
+    volumes:
+      - .:/app
+      - ./logs:/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,7 +156,15 @@ services:
   frontend:
     image: node:22-alpine
     working_dir: /app/frontend
-    command: sh -c "corepack enable && pnpm install --frozen-lockfile --config.confirmModulesPurge=false && pnpm dev --host 0.0.0.0 --port 5173"
+    command: >
+      sh -lc '
+      set -e;
+      stamp=$$(date +%Y%m%d-%H%M%S);
+      mkdir -p /logs;
+      corepack enable 2>&1 | tee -a /logs/$${stamp}-frontend.log;
+      pnpm install --frozen-lockfile --config.confirmModulesPurge=false 2>&1 | tee -a /logs/$${stamp}-frontend.log;
+      pnpm dev --host 0.0.0.0 --port 5173 2>&1 | tee -a /logs/$${stamp}-frontend.log
+      '
     environment:
       CI: "true"
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
@@ -82,6 +174,7 @@ services:
     volumes:
       - .:/app
       - frontend_node_modules:/app/frontend/node_modules
+      - ./logs:/logs
     depends_on:
       - backend
 

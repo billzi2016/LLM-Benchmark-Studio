@@ -11,6 +11,7 @@ DATA_DIR = REPO_ROOT / "data"
 BENCHMARK_DATASETS_DIR = DATA_DIR / "benchmark_datasets"
 LLM_MODEL_NAMES_PATH = DATA_DIR / "llm_model_names.json"
 LANGUAGES_PATH = DATA_DIR / "languages.json"
+LOGS_DIR = REPO_ROOT / "logs"
 
 
 def env_bool(name: str, default: bool = False) -> bool:
@@ -51,6 +52,7 @@ INSTALLED_APPS.extend(
         "apps.core",
         "apps.datasets",
         "apps.llms",
+        "apps.benchmarking",
         "apps.api",
     ]
 )
@@ -206,3 +208,57 @@ CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "llm_benchmar
 CELERY_WORKER_CONCURRENCY = int(os.getenv("CELERY_WORKER_CONCURRENCY", "1"))
 CELERY_WORKER_PREFETCH_MULTIPLIER = int(os.getenv("CELERY_WORKER_PREFETCH_MULTIPLIER", "1"))
 CELERY_TASK_ACKS_LATE = env_bool("CELERY_TASK_ACKS_LATE", True)
+
+SERVICE_NAME = os.getenv("SERVICE_NAME", "backend")
+SERVICE_LOG_PATH = os.getenv("SERVICE_LOG_PATH", str(LOGS_DIR / f"{SERVICE_NAME}.log"))
+LLM_WALLTIME_LOG_PATH = os.getenv("LLM_WALLTIME_LOG_PATH", str(LOGS_DIR / "llm_walltime.log"))
+
+Path(SERVICE_LOG_PATH).parent.mkdir(parents=True, exist_ok=True)
+Path(LLM_WALLTIME_LOG_PATH).parent.mkdir(parents=True, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "service_file": {
+            "class": "logging.FileHandler",
+            "filename": SERVICE_LOG_PATH,
+            "formatter": "standard",
+        },
+        "llm_walltime_file": {
+            "class": "logging.FileHandler",
+            "filename": LLM_WALLTIME_LOG_PATH,
+            "formatter": "standard",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "service_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["console", "service_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "llm_walltime": {
+            "handlers": ["console", "llm_walltime_file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console", "service_file"],
+        "level": "INFO",
+    },
+}

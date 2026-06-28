@@ -2,6 +2,20 @@
 
 LLM Benchmark Studio is a local-first benchmark system for running model evaluations with Django, Vue, PostgreSQL, RabbitMQ, and Celery.
 
+Start here for the shortest runnable path:
+
+```text
+QUICKSTART.md
+```
+
+Default Django admin:
+
+```text
+http://localhost:6341/admin
+username: guest
+password: guest
+```
+
 ![LLM Benchmark Studio demo](images/demo-v1.png)
 
 Architecture and flow diagrams:
@@ -258,6 +272,28 @@ Start the normal local stack:
 ```bash
 docker compose up --build
 ```
+
+## Logs
+
+All service logs are written to the project-local directory:
+
+```text
+logs/
+```
+
+Naming convention:
+
+```text
+YYYYMMDD-HHMMSS-backend.log
+YYYYMMDD-HHMMSS-worker.log
+YYYYMMDD-HHMMSS-frontend.log
+YYYYMMDD-HHMMSS-postgres.log
+YYYYMMDD-HHMMSS-rabbitmq.log
+YYYYMMDD-HHMMSS-rabbitmq-sasl.log
+YYYYMMDD-HHMMSS-llm_walltime.log
+```
+
+`llm_walltime` is reserved for model execution timing records. Each line records provider, model, task kind, dataset, language, start time, finish time, elapsed seconds, and walltime seconds.
 
 Run it in the background:
 

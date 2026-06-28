@@ -9,6 +9,33 @@ import { sortedTasks } from './utils/taskOrdering'
 
 const store = useStudioStore()
 
+function formatEta(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`
+}
+
+function formatElapsed(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  const remainingSeconds = seconds % 60
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+  }
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`
+}
+
+function formatTaskKind(taskKind: string): string {
+  if (taskKind === 'translate_then_benchmark') {
+    return 'translation + benchmark'
+  }
+  return taskKind
+}
+
+function formatBytesToGiB(value: number): string {
+  return `${(value / 1024 / 1024 / 1024).toFixed(1)} GiB`
+}
+
 onMounted(() => {
   void store.loadInitialData()
 })
@@ -56,6 +83,22 @@ onMounted(() => {
           <div class="metric">
             <span>Think ctx</span>
             <strong>{{ store.systemStatus?.contexts.think ?? '-' }}</strong>
+          </div>
+          <div class="metric">
+            <span>CPU</span>
+            <strong>{{ store.systemStatus?.metrics.cpu.percent ?? 0 }}%</strong>
+          </div>
+          <div class="metric">
+            <span>GPU</span>
+            <strong>{{ store.systemStatus?.metrics.gpu.utilization_percent ?? '-' }}{{ store.systemStatus?.metrics.gpu.utilization_percent != null ? '%' : '' }}</strong>
+          </div>
+          <div class="metric">
+            <span>Memory</span>
+            <strong>{{ store.systemStatus ? formatBytesToGiB(store.systemStatus.metrics.memory.used_bytes) : '-' }}</strong>
+          </div>
+          <div class="metric">
+            <span>Disk</span>
+            <strong>{{ store.systemStatus?.metrics.disk.percent ?? 0 }}%</strong>
           </div>
         </div>
         <div class="list-section">
@@ -145,20 +188,32 @@ onMounted(() => {
           <h2>Task Queue</h2>
         </div>
         <div class="task-controls">
-          <button type="button" title="Play"><Play :size="16" /></button>
-          <button type="button" title="Pause"><Pause :size="16" /></button>
-          <button type="button" title="Stop"><Square :size="16" /></button>
+          <button type="button" title="Play" @click="store.playQueue"><Play :size="16" /></button>
+          <button type="button" title="Pause" @click="store.pauseQueue"><Pause :size="16" /></button>
+          <button type="button" title="Stop" @click="store.stopQueue"><Square :size="16" /></button>
         </div>
         <div class="scroll-list task-list">
-          <div v-for="task in sortedTasks(store.tasks)" :key="task.id" class="task-row">
-            <div>
-              <strong>{{ task.model_name }}</strong>
-              <span>{{ task.language_code }} · {{ task.dataset_display_name }}</span>
-              <span>{{ task.needs_translation ? 'translate first, then benchmark' : 'benchmark ready' }}</span>
-              <span>{{ task.completed_questions.toLocaleString() }} / {{ task.total_questions.toLocaleString() }}</span>
-            </div>
-            <div class="progress-track">
-              <div class="progress-fill" :style="{ width: `${task.progress_percent}%` }"></div>
+          <div
+            v-for="task in sortedTasks(store.tasks)"
+            :key="task.id"
+            class="task-row"
+            :class="{
+              'task-row-running': task.status === 'running' || task.status === 'starting',
+              'task-row-completed': task.status === 'completed'
+            }"
+          >
+            <strong class="task-title">
+              {{ task.model_name }} · {{ task.language_code }} · {{ task.dataset_display_name }} · {{ formatTaskKind(task.task_kind) }}
+            </strong>
+            <div class="task-progress-row">
+              <span class="task-progress-meta">
+                {{ task.status === 'starting' ? 'starting...' : task.status }} · ETA {{ formatEta(task.eta_seconds) }} ·
+                elapsed {{ formatElapsed(task.elapsed_seconds) }} ·
+                {{ task.completed_questions.toLocaleString() }} / {{ task.total_questions.toLocaleString() }}
+              </span>
+              <div class="progress-track">
+                <div class="progress-fill" :style="{ width: `${task.progress_percent}%` }"></div>
+              </div>
             </div>
           </div>
         </div>

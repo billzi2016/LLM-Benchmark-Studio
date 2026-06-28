@@ -37,6 +37,16 @@ describe('overall task queue semantics', () => {
   it('marks translation as required when target language differs from source language', () => {
     const tasks = buildPreviewTasks(['model-a'], datasets, 'fr', 'run-1')
     expect(tasks[0].needs_translation).toBe(true)
+    expect(tasks[0].task_kind).toBe('translation')
     expect(tasks[1].needs_translation).toBe(false)
+    expect(tasks[1].task_kind).toBe('benchmark')
+  })
+
+  it('initializes time tracking fields for each task', () => {
+    const [task] = buildPreviewTasks(['model-a'], [datasets[0]], 'en', 'run-1')
+    expect(task.started_at).toBeNull()
+    expect(task.finished_at).toBeNull()
+    expect(task.elapsed_seconds).toBe(0)
+    expect(task.walltime_seconds).toBe(0)
   })
 })

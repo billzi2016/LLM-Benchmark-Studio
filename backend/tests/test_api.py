@@ -21,6 +21,19 @@ class ApiTests(SimpleTestCase):
         self.assertTrue(payload["ok"])
         self.assertGreater(payload["meta"]["total"], 0)
 
+    def test_system_snapshot(self) -> None:
+        response = self.client.get("/api/system/snapshot")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertTrue(payload["ok"])
+        self.assertIn("cpu", payload["data"])
+        self.assertIn("memory", payload["data"])
+
+    def test_system_stream(self) -> None:
+        response = self.client.get("/api/system/stream?interval=1")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response["Content-Type"].startswith("text/event-stream"))
+
     def test_llm_providers(self) -> None:
         response = self.client.get("/api/llms/providers")
         self.assertEqual(response.status_code, 200)

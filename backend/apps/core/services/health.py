@@ -4,11 +4,13 @@ from pathlib import Path
 import socket
 from typing import Any
 
+from config.celery import app as celery_app
 from apps.datasets.catalog import scan_datasets
 from apps.datasets.languages import load_languages
 from apps.llms.providers import get_provider
 from apps.llms.registry import generation_models, load_model_registry
 from django.db import connection
+from system_profiler import collect_system_snapshot
 
 
 def file_status(path: Path) -> dict[str, Any]:
@@ -76,14 +78,27 @@ def check_providers(settings: Any) -> list[dict[str, Any]]:
     return services
 
 
+def check_celery_worker() -> dict[str, Any]:
+    try:
+        inspect = celery_app.control.inspect(timeout=1)
+        response = inspect.ping() or {}
+    except Exception as exc:  # noqa: BLE001
+        return error_service("celery", "Celery Worker", exc)
+    if not response:
+        return disabled_service("celery", "Celery Worker", "no worker reply")
+    return ok_service("celery", "Celery Worker", ", ".join(sorted(response.keys())))
+
+
 def build_system_status(settings: Any) -> dict[str, Any]:
     models = generation_models(load_model_registry(settings.LLM_MODEL_NAMES_PATH))
     languages = load_languages(settings.LANGUAGES_PATH)
     datasets = scan_datasets(settings.BENCHMARK_DATASETS_DIR)
+    snapshot = collect_system_snapshot()
     services = [
         ok_service("backend", "Django API", "running"),
         check_database(),
         check_tcp("rabbitmq", "RabbitMQ", settings.RABBITMQ_HOST, settings.RABBITMQ_PORT),
+        check_celery_worker(),
         *check_providers(settings),
     ]
     return {
@@ -117,6 +132,7 @@ def build_system_status(settings: Any) -> dict[str, Any]:
             "think": settings.LLM_CONTEXT_THINK,
             "no_think": settings.LLM_CONTEXT_NO_THINK,
         },
+        "metrics": snapshot,
         "counts": {
             "models_total": len(models),
             "models_active": sum(1 for model in models if model.get("activate")),

@@ -18,6 +18,23 @@ export async function getJson<T>(path: string): Promise<T> {
   return payload.data
 }
 
+export async function postJson<T>(path: string, body?: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  })
+  if (!response.ok) {
+    throw new Error(`POST ${path} failed: ${response.status}`)
+  }
+  const payload = (await response.json()) as ApiResponse<T>
+  return payload.data
+}
+
 export async function downloadFile(path: string, filename: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}${path}`, { credentials: 'include' })
   if (!response.ok) {
