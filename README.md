@@ -22,7 +22,7 @@ Host-side system profiler FastAPI:
 http://127.0.0.1:6346/health
 ```
 
-![LLM Benchmark Studio demo](images/demo-v1.png)
+![LLM Benchmark Studio demo](images/demo-v2.png)
 
 Architecture and flow diagrams:
 

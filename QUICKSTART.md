@@ -162,3 +162,4 @@ The `Service Health` section should show:
 - PostgreSQL
 - RabbitMQ
 - Celery Worker
+- System Profiler

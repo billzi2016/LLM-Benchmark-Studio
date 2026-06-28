@@ -307,13 +307,13 @@ CREATE INDEX idx_provider_logs_provider_model ON provider_call_logs(provider, mo
 
 ```env
 # ==================== PostgreSQL ====================
-POSTGRES_HOST=localhost
+POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_DB=llm_benchmark_studio
 POSTGRES_USER=llm_benchmark
 POSTGRES_PASSWORD=change_me
 POSTGRES_SSL_MODE=disable
-DATABASE_URL=postgresql://llm_benchmark:change_me@localhost:5432/llm_benchmark_studio
+DATABASE_URL=postgresql://llm_benchmark:change_me@postgres:5432/llm_benchmark_studio
 ```
 
 ## 7. Project Tree

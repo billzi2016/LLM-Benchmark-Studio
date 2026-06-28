@@ -91,12 +91,12 @@ Celery message payload 必须包含：
 
 ```env
 # ==================== RabbitMQ ====================
-RABBITMQ_HOST=localhost
+RABBITMQ_HOST=rabbitmq
 RABBITMQ_PORT=5672
 RABBITMQ_USER=guest
 RABBITMQ_PASSWORD=guest
 RABBITMQ_VHOST=/
-RABBITMQ_URL=amqp://guest:guest@localhost:5672//
+RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672//
 RABBITMQ_EXCHANGE=llm_benchmark
 RABBITMQ_QUEUE_SERIAL=llm_benchmark.serial
 RABBITMQ_ROUTING_KEY_SERIAL=task.serial
@@ -106,7 +106,7 @@ RABBITMQ_ROUTING_KEY_SERIAL=task.serial
 
 ```env
 # ==================== Celery Broker ====================
-CELERY_BROKER_URL=amqp://guest:guest@localhost:5672//
+CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
 CELERY_TASK_DEFAULT_QUEUE=llm_benchmark.serial
 CELERY_WORKER_CONCURRENCY=1
 CELERY_WORKER_PREFETCH_MULTIPLIER=1

@@ -244,7 +244,7 @@ Django SSE 读取 PostgreSQL 或订阅内部事件后推送：
 
 ```env
 # ==================== Celery ====================
-CELERY_BROKER_URL=amqp://guest:guest@localhost:5672//
+CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
 CELERY_RESULT_BACKEND=django-db
 CELERY_TASK_DEFAULT_QUEUE=llm_benchmark.serial
 CELERY_WORKER_CONCURRENCY=1

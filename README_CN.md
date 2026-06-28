@@ -22,7 +22,7 @@ http://localhost:6341/admin
 http://127.0.0.1:6346/health
 ```
 
-![LLM Benchmark Studio 界面截图](images/demo-v1.png)
+![LLM Benchmark Studio 界面截图](images/demo-v2.png)
 
 中文架构和流程图：
 

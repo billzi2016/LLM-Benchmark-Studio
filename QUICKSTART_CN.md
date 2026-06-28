@@ -162,3 +162,4 @@ curl http://localhost:6341/api/system/status
 - PostgreSQL
 - RabbitMQ
 - Celery Worker
+- System Profiler
