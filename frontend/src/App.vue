@@ -122,7 +122,11 @@ function toneFromValue(value: number): 'high' | 'mid' | 'low' {
   return 'low'
 }
 
-function sparklineSegments(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): Array<{ points: string; tone: 'high' | 'mid' | 'low' }> {
+function sparklineSegments(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): Array<{
+  areaPoints: string
+  linePoints: string
+  tone: 'high' | 'mid' | 'low'
+}> {
   const snapshots = store.profilerHistory?.snapshots ?? []
   if (snapshots.length < 2) {
     return []
@@ -144,7 +148,8 @@ function sparklineSegments(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): Array<{ p
     const nextPoint = points[index + 1]
     const value = (point.value + nextPoint.value) / 2
     return {
-      points: `${point.x},100 ${point.x},${point.y} ${nextPoint.x},${nextPoint.y} ${nextPoint.x},100`,
+      areaPoints: `${point.x},100 ${point.x},${point.y} ${nextPoint.x},${nextPoint.y} ${nextPoint.x},100`,
+      linePoints: `${point.x},${point.y} ${nextPoint.x},${nextPoint.y}`,
       tone: toneFromValue(value)
     }
   })
@@ -264,11 +269,16 @@ function stopResize() {
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
               <polygon
                 v-for="(segment, index) in sparklineSegments('cpu')"
-                :key="`cpu-${index}`"
-                :points="segment.points"
+                :key="`cpu-area-${index}`"
+                :points="segment.areaPoints"
                 :class="`metric-segment-${segment.tone}`"
               />
-              <polyline :points="sparklinePoints('cpu')" />
+              <polyline
+                v-for="(segment, index) in sparklineSegments('cpu')"
+                :key="`cpu-line-${index}`"
+                :points="segment.linePoints"
+                :class="`metric-segment-line-${segment.tone}`"
+              />
             </svg>
             <span>CPU</span>
             <strong>{{ profilerMetricPercent('cpu') }}</strong>
@@ -277,11 +287,16 @@ function stopResize() {
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
               <polygon
                 v-for="(segment, index) in sparklineSegments('gpu')"
-                :key="`gpu-${index}`"
-                :points="segment.points"
+                :key="`gpu-area-${index}`"
+                :points="segment.areaPoints"
                 :class="`metric-segment-${segment.tone}`"
               />
-              <polyline :points="sparklinePoints('gpu')" />
+              <polyline
+                v-for="(segment, index) in sparklineSegments('gpu')"
+                :key="`gpu-line-${index}`"
+                :points="segment.linePoints"
+                :class="`metric-segment-line-${segment.tone}`"
+              />
             </svg>
             <span>GPU</span>
             <strong>{{ profilerMetricPercent('gpu') }}</strong>
@@ -290,11 +305,16 @@ function stopResize() {
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
               <polygon
                 v-for="(segment, index) in sparklineSegments('memory')"
-                :key="`memory-${index}`"
-                :points="segment.points"
+                :key="`memory-area-${index}`"
+                :points="segment.areaPoints"
                 :class="`metric-segment-${segment.tone}`"
               />
-              <polyline :points="sparklinePoints('memory')" />
+              <polyline
+                v-for="(segment, index) in sparklineSegments('memory')"
+                :key="`memory-line-${index}`"
+                :points="segment.linePoints"
+                :class="`metric-segment-line-${segment.tone}`"
+              />
             </svg>
             <span>Memory</span>
             <strong>{{
@@ -307,11 +327,16 @@ function stopResize() {
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
               <polygon
                 v-for="(segment, index) in sparklineSegments('disk')"
-                :key="`disk-${index}`"
-                :points="segment.points"
+                :key="`disk-area-${index}`"
+                :points="segment.areaPoints"
                 :class="`metric-segment-${segment.tone}`"
               />
-              <polyline :points="sparklinePoints('disk')" />
+              <polyline
+                v-for="(segment, index) in sparklineSegments('disk')"
+                :key="`disk-line-${index}`"
+                :points="segment.linePoints"
+                :class="`metric-segment-line-${segment.tone}`"
+              />
             </svg>
             <span>Disk</span>
             <strong>{{ profilerMetricPercent('disk') }}</strong>
@@ -394,6 +419,9 @@ function stopResize() {
             <strong>{{ dataset.question_count.toLocaleString() }}</strong>
           </button>
         </div>
+        <div class="subsection-divider">
+          <span>Translate Language</span>
+        </div>
         <div class="language-strip">
           <button
             v-for="language in store.languages.filter((item) => item.activate)"
@@ -432,6 +460,9 @@ function stopResize() {
             :key="task.id"
             class="task-row"
             :class="{
+              'task-row-selected-queued':
+                store.selectedTaskIds.includes(task.id) &&
+                ['pending', 'paused', 'stopped'].includes(task.status),
               'task-row-translation': task.task_kind === 'translation',
               'task-row-running': task.status === 'running' || task.status === 'starting',
               'task-row-completed': task.status === 'completed'
