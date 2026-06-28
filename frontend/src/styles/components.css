@@ -93,6 +93,7 @@
 
 .metric-sparkline polygon {
   stroke: none;
+  fill: rgba(108, 124, 148, 0.12);
 }
 
 .metric-sparkline polyline {
@@ -101,6 +102,30 @@
   stroke-width: 0.9;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.metric-sparkline[data-tone='low'] polygon {
+  fill: rgba(76, 175, 125, 0.18);
+}
+
+.metric-sparkline[data-tone='low'] polyline {
+  stroke: #4caf7d;
+}
+
+.metric-sparkline[data-tone='mid'] polygon {
+  fill: rgba(245, 196, 81, 0.2);
+}
+
+.metric-sparkline[data-tone='mid'] polyline {
+  stroke: #d29b1d;
+}
+
+.metric-sparkline[data-tone='high'] polygon {
+  fill: rgba(229, 72, 77, 0.22);
+}
+
+.metric-sparkline[data-tone='high'] polyline {
+  stroke: #cf3f44;
 }
 
 .metric span,

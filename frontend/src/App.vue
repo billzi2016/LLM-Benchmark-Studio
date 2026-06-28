@@ -103,7 +103,40 @@ function sparklineAreaPoints(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): string 
   if (!points) {
     return ''
   }
-  return `0,100 ${points} 100,100`
+  const firstPoint = points.split(' ')[0]
+  const firstX = firstPoint?.split(',')[0] ?? '0'
+  return `${firstX},100 ${points} 100,100`
+}
+
+function currentMetricValue(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): number | null {
+  const snapshot = store.profilerSnapshot
+  if (!snapshot) {
+    return null
+  }
+  if (metric === 'cpu') {
+    return snapshot.cpu.percent ?? null
+  }
+  if (metric === 'gpu') {
+    return snapshot.gpu.utilization_percent ?? null
+  }
+  if (metric === 'memory') {
+    return snapshot.memory.total_bytes > 0 ? (snapshot.memory.used_bytes / snapshot.memory.total_bytes) * 100 : null
+  }
+  return snapshot.disk.percent ?? null
+}
+
+function metricTone(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): 'high' | 'mid' | 'low' | 'none' {
+  const value = currentMetricValue(metric)
+  if (value == null) {
+    return 'none'
+  }
+  if (value >= 80) {
+    return 'high'
+  }
+  if (value >= 20) {
+    return 'mid'
+  }
+  return 'low'
 }
 
 function profilerMetricPercent(metric: 'cpu' | 'gpu' | 'disk'): string {
@@ -200,54 +233,24 @@ function stopResize() {
             <strong>{{ store.systemStatus?.contexts.think ?? '-' }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="spark-gradient-cpu" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
-                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
-                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
-                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
-                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
-                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
-                </linearGradient>
-              </defs>
-              <polygon :points="sparklineAreaPoints('cpu')" fill="url(#spark-gradient-cpu)" />
+            <svg class="metric-sparkline" :data-tone="metricTone('cpu')" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon :points="sparklineAreaPoints('cpu')" />
               <polyline :points="sparklinePoints('cpu')" />
             </svg>
             <span>CPU</span>
             <strong>{{ profilerMetricPercent('cpu') }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="spark-gradient-gpu" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
-                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
-                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
-                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
-                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
-                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
-                </linearGradient>
-              </defs>
-              <polygon :points="sparklineAreaPoints('gpu')" fill="url(#spark-gradient-gpu)" />
+            <svg class="metric-sparkline" :data-tone="metricTone('gpu')" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon :points="sparklineAreaPoints('gpu')" />
               <polyline :points="sparklinePoints('gpu')" />
             </svg>
             <span>GPU</span>
             <strong>{{ profilerMetricPercent('gpu') }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="spark-gradient-memory" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
-                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
-                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
-                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
-                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
-                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
-                </linearGradient>
-              </defs>
-              <polygon :points="sparklineAreaPoints('memory')" fill="url(#spark-gradient-memory)" />
+            <svg class="metric-sparkline" :data-tone="metricTone('memory')" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon :points="sparklineAreaPoints('memory')" />
               <polyline :points="sparklinePoints('memory')" />
             </svg>
             <span>Memory</span>
@@ -258,18 +261,8 @@ function stopResize() {
             }}</strong>
           </div>
           <div class="metric metric-chart">
-            <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
-              <defs>
-                <linearGradient id="spark-gradient-disk" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
-                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
-                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
-                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
-                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
-                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
-                </linearGradient>
-              </defs>
-              <polygon :points="sparklineAreaPoints('disk')" fill="url(#spark-gradient-disk)" />
+            <svg class="metric-sparkline" :data-tone="metricTone('disk')" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <polygon :points="sparklineAreaPoints('disk')" />
               <polyline :points="sparklinePoints('disk')" />
             </svg>
             <span>Disk</span>
