@@ -16,14 +16,6 @@ from .snapshot import collect_system_snapshot
 
 POLL_INTERVAL_SECONDS = float(os.getenv("SYSTEM_PROFILER_POLL_INTERVAL_SECONDS", "2"))
 HISTORY_MAXLEN = int(os.getenv("SYSTEM_PROFILER_HISTORY_MAXLEN", "300"))
-ALLOWED_ORIGINS = [
-    item.strip()
-    for item in os.getenv(
-        "SYSTEM_PROFILER_ALLOWED_ORIGINS",
-        "http://localhost:6325,http://127.0.0.1:6325,http://localhost:5173,http://127.0.0.1:5173",
-    ).split(",")
-    if item.strip()
-]
 
 history = MetricsHistory(maxlen=HISTORY_MAXLEN)
 stop_event = threading.Event()
@@ -53,7 +45,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="LLM Benchmark Studio System Profiler", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["GET"],
     allow_headers=["*"],
