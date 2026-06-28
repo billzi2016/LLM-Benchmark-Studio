@@ -98,6 +98,14 @@ function sparklinePoints(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): string {
     .join(' ')
 }
 
+function sparklineAreaPoints(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): string {
+  const points = sparklinePoints(metric)
+  if (!points) {
+    return ''
+  }
+  return `0,100 ${points} 100,100`
+}
+
 function profilerMetricPercent(metric: 'cpu' | 'gpu' | 'disk'): string {
   const snapshot = store.profilerSnapshot
   if (!snapshot) {
@@ -193,6 +201,17 @@ function stopResize() {
           </div>
           <div class="metric metric-chart">
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="spark-gradient-cpu" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
+                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
+                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
+                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
+                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
+                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
+                </linearGradient>
+              </defs>
+              <polygon :points="sparklineAreaPoints('cpu')" fill="url(#spark-gradient-cpu)" />
               <polyline :points="sparklinePoints('cpu')" />
             </svg>
             <span>CPU</span>
@@ -200,6 +219,17 @@ function stopResize() {
           </div>
           <div class="metric metric-chart">
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="spark-gradient-gpu" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
+                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
+                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
+                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
+                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
+                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
+                </linearGradient>
+              </defs>
+              <polygon :points="sparklineAreaPoints('gpu')" fill="url(#spark-gradient-gpu)" />
               <polyline :points="sparklinePoints('gpu')" />
             </svg>
             <span>GPU</span>
@@ -207,6 +237,17 @@ function stopResize() {
           </div>
           <div class="metric metric-chart">
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="spark-gradient-memory" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
+                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
+                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
+                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
+                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
+                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
+                </linearGradient>
+              </defs>
+              <polygon :points="sparklineAreaPoints('memory')" fill="url(#spark-gradient-memory)" />
               <polyline :points="sparklinePoints('memory')" />
             </svg>
             <span>Memory</span>
@@ -218,6 +259,17 @@ function stopResize() {
           </div>
           <div class="metric metric-chart">
             <svg class="metric-sparkline" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="spark-gradient-disk" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e5484d" stop-opacity="0.32" />
+                  <stop offset="20%" stop-color="#e5484d" stop-opacity="0.24" />
+                  <stop offset="20%" stop-color="#f5c451" stop-opacity="0.24" />
+                  <stop offset="80%" stop-color="#f5c451" stop-opacity="0.2" />
+                  <stop offset="80%" stop-color="#4caf7d" stop-opacity="0.2" />
+                  <stop offset="100%" stop-color="#4caf7d" stop-opacity="0.14" />
+                </linearGradient>
+              </defs>
+              <polygon :points="sparklineAreaPoints('disk')" fill="url(#spark-gradient-disk)" />
               <polyline :points="sparklinePoints('disk')" />
             </svg>
             <span>Disk</span>
