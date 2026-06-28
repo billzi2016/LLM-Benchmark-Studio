@@ -57,7 +57,9 @@ function isGenerationModel(model: LlmModel): boolean {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let systemStream: EventSource | null = null
+let profilerSnapshotTimer: ReturnType<typeof setInterval> | null = null
 let profilerHistoryTimer: ReturnType<typeof setInterval> | null = null
+let profilerStreamReconnectTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useStudioStore = defineStore('studio', {
   getters: {
@@ -191,6 +193,7 @@ export const useStudioStore = defineStore('studio', {
         }
         this.profilerSnapshot = payload.data
         this.profilerErrors = this.profilerErrors.filter((item) => item !== 'profiler stream')
+        this.profilerErrors = this.profilerErrors.filter((item) => item !== 'profiler snapshot')
       })
       systemStream.onerror = () => {
         if (!this.profilerErrors.includes('profiler stream')) {
@@ -200,7 +203,29 @@ export const useStudioStore = defineStore('studio', {
           systemStream.close()
           systemStream = null
         }
+        if (!profilerStreamReconnectTimer) {
+          profilerStreamReconnectTimer = setTimeout(() => {
+            profilerStreamReconnectTimer = null
+            this.ensureSystemStream()
+          }, 2000)
+        }
       }
+    },
+    ensureProfilerSnapshotPolling() {
+      if (profilerSnapshotTimer) {
+        return
+      }
+      profilerSnapshotTimer = setInterval(async () => {
+        try {
+          this.profilerSnapshot = await fetchProfilerSnapshot()
+          this.profilerErrors = this.profilerErrors.filter((item) => item !== 'profiler snapshot')
+          this.ensureSystemStream()
+        } catch {
+          if (!this.profilerErrors.includes('profiler snapshot')) {
+            this.profilerErrors = [...this.profilerErrors, 'profiler snapshot']
+          }
+        }
+      }, 3000)
     },
     ensureProfilerHistoryPolling() {
       if (profilerHistoryTimer) {
@@ -222,6 +247,9 @@ export const useStudioStore = defineStore('studio', {
       this.loading = true
       this.loadError = ''
       this.profilerErrors = []
+      this.ensureProfilerSnapshotPolling()
+      this.ensureProfilerHistoryPolling()
+      this.ensureSystemStream()
       try {
         const [systemStatus, profilerSnapshot, profilerHistory, models, datasets, languages, runs] =
           await Promise.allSettled([
@@ -240,13 +268,13 @@ export const useStudioStore = defineStore('studio', {
         }
         if (profilerSnapshot.status === 'fulfilled') {
           this.profilerSnapshot = profilerSnapshot.value
-          this.ensureSystemStream()
+          this.profilerErrors = this.profilerErrors.filter((item) => item !== 'profiler snapshot')
         } else {
           this.profilerErrors.push('profiler snapshot')
         }
         if (profilerHistory.status === 'fulfilled') {
           this.profilerHistory = profilerHistory.value
-          this.ensureProfilerHistoryPolling()
+          this.profilerErrors = this.profilerErrors.filter((item) => item !== 'profiler history')
         } else {
           this.profilerErrors.push('profiler history')
         }
