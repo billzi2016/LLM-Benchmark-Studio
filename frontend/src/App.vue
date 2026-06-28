@@ -339,6 +339,7 @@ function stopResize() {
             :key="task.id"
             class="task-row"
             :class="{
+              'task-row-translation': task.task_kind === 'translation',
               'task-row-running': task.status === 'running' || task.status === 'starting',
               'task-row-completed': task.status === 'completed'
             }"

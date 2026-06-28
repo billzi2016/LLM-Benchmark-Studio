@@ -250,6 +250,11 @@
   gap: 9px;
 }
 
+.task-row-translation {
+  border-width: 2px;
+  border-color: #8fb4ea;
+}
+
 .task-select-row {
   display: inline-flex;
   align-items: center;
