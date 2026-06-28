@@ -462,9 +462,10 @@ function stopResize() {
             :key="task.id"
             class="task-row"
             :class="{
+              'task-row-pending': task.status === 'pending',
               'task-row-selected-queued':
                 store.selectedTaskIds.includes(task.id) &&
-                ['pending', 'paused', 'stopped'].includes(task.status),
+                ['paused', 'stopped'].includes(task.status),
               'task-row-translation': task.task_kind === 'translation',
               'task-row-running': task.status === 'running' || task.status === 'starting',
               'task-row-completed': task.status === 'completed'

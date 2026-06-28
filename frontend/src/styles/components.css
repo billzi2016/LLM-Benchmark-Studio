@@ -110,7 +110,7 @@
 
 .metric-sparkline polyline {
   fill: none;
-  stroke: #7a8fb8;
+  stroke: none;
   stroke-width: 0.9;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -120,12 +120,24 @@
   fill: rgba(76, 175, 125, 0.18);
 }
 
+.metric-sparkline .metric-segment-line-low {
+  stroke: #2f8f5c;
+}
+
 .metric-sparkline .metric-segment-mid {
   fill: rgba(245, 196, 81, 0.2);
 }
 
+.metric-sparkline .metric-segment-line-mid {
+  stroke: #b88109;
+}
+
 .metric-sparkline .metric-segment-high {
   fill: rgba(229, 72, 77, 0.22);
+}
+
+.metric-sparkline .metric-segment-line-high {
+  stroke: #c2373d;
 }
 
 .metric span,
@@ -308,6 +320,24 @@
   border-width: 2px;
   background: #e6f0ff;
   box-shadow: inset 4px 0 0 #2f6feb, inset 0 0 0 1px rgba(47, 111, 235, 0.14);
+}
+
+.task-row-pending {
+  border-color: #2f6feb;
+  border-width: 2px;
+  background: #eef5ff;
+  box-shadow: inset 4px 0 0 #2f6feb, inset 0 0 0 1px rgba(47, 111, 235, 0.08);
+}
+
+.task-row-pending .task-title {
+  color: #123a7a;
+}
+
+.task-row-pending .task-progress-meta,
+.task-row-pending .task-select-row,
+.task-row-pending .task-select-row span {
+  color: #2357a6;
+  font-weight: 600;
 }
 
 .task-row-selected-queued .task-title {
