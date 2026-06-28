@@ -356,6 +356,11 @@ export const useStudioStore = defineStore('studio', {
     selectAllTasks() {
       this.selectedTaskIds = this.tasks.map((task) => task.id)
     },
+    selectTranslationTasks() {
+      this.selectedTaskIds = this.tasks
+        .filter((task) => task.task_kind === 'translation')
+        .map((task) => task.id)
+    },
     invertTaskSelection() {
       const allTaskIds = this.tasks.map((task) => task.id)
       const selected = new Set(this.selectedTaskIds)

@@ -215,30 +215,31 @@
   font-weight: 600;
 }
 
-.task-action-neutral {
+.task-controls .task-action-neutral {
   background: #ffffff;
   color: #243042;
+  border-color: #c9d1dc;
 }
 
-.task-action-play {
+.task-controls .task-action-play {
   background: #e7f6ed;
   border-color: #9fd5af;
   color: #166534;
 }
 
-.task-action-pause {
+.task-controls .task-action-pause {
   background: #fff6d8;
   border-color: #e7cf79;
   color: #8a6700;
 }
 
-.task-action-stop {
+.task-controls .task-action-stop {
   background: #fbe7e9;
   border-color: #e39aa1;
   color: #b42318;
 }
 
-.task-action-delete {
+.task-controls .task-action-delete {
   background: #f9d6da;
   border-color: #d92d20;
   color: #8f1d14;

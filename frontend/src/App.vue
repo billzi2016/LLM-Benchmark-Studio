@@ -326,7 +326,8 @@ function stopResize() {
         </div>
         <div class="task-controls">
           <button class="task-action task-action-neutral" type="button" title="Select all tasks" @click="store.selectAllTasks()">Select All</button>
-          <button class="task-action task-action-neutral" type="button" title="Invert task selection" @click="store.invertTaskSelection()">Invert</button>
+          <button class="task-action task-action-neutral" type="button" title="Select translation tasks" @click="store.selectTranslationTasks()">Select Translations</button>
+          <button class="task-action task-action-neutral" type="button" title="Invert task selection" @click="store.invertTaskSelection()">Invert Selection</button>
           <button class="task-action task-action-play" type="button" title="Play" @click="store.playQueue"><Play :size="16" /></button>
           <button class="task-action task-action-pause" type="button" title="Pause" @click="store.pauseQueue"><Pause :size="16" /></button>
           <button class="task-action task-action-stop" type="button" title="Stop" @click="store.stopQueue"><Square :size="16" /></button>
