@@ -18,7 +18,10 @@ POLL_INTERVAL_SECONDS = float(os.getenv("SYSTEM_PROFILER_POLL_INTERVAL_SECONDS",
 HISTORY_MAXLEN = int(os.getenv("SYSTEM_PROFILER_HISTORY_MAXLEN", "300"))
 ALLOWED_ORIGINS = [
     item.strip()
-    for item in os.getenv("SYSTEM_PROFILER_ALLOWED_ORIGINS", "http://localhost:6342").split(",")
+    for item in os.getenv(
+        "SYSTEM_PROFILER_ALLOWED_ORIGINS",
+        "http://localhost:6325,http://127.0.0.1:6325,http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",")
     if item.strip()
 ]
 

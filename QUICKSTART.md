@@ -57,7 +57,7 @@ The Vue frontend reads system metrics directly from this FastAPI service.
 
 After startup:
 
-- Frontend: `http://localhost:6342`
+- Frontend: `http://localhost:6325`
 - Backend API: `http://localhost:6341/api/system/status`
 - Swagger: `http://localhost:6341/api/docs`
 - OpenAPI JSON: `http://localhost:6341/api/openapi.json`

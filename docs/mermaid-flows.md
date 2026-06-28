@@ -6,7 +6,7 @@ This document shows the main product and runtime flows for LLM Benchmark Studio.
 
 ```mermaid
 flowchart LR
-  User[User Browser] -->|http://localhost:6342| Vue[Vue Vite Frontend]
+  User[User Browser] -->|http://localhost:6325| Vue[Vue Vite Frontend]
   Vue -->|REST API| Django[Django Ninja API]
   Vue -->|SSE later| Django
 
@@ -43,7 +43,7 @@ flowchart TD
   Backend --> Frontend[frontend service]
   Frontend --> Pnpm[pnpm install --frozen-lockfile]
   Pnpm --> Vite[Vite dev server on container port 5173]
-  Vite --> HostUI[Host port 6342]
+  Vite --> HostUI[Host port 6325]
 
   PG --> PGData[./.docker/postgres/data]
 ```
@@ -102,7 +102,7 @@ sequenceDiagram
   Worker->>DB: Load dataset question
   Worker->>LLM: Prompt with stem + options + strict output rule
   LLM-->>Worker: Final answer only
-  Worker->>DB: Save llm_response[model_name]
+  Worker->>DB: Save llm_response.model_name
   Worker->>DB: Mark task completed
   UI->>API: Poll/SSE progress
   API-->>UI: Updated task status
@@ -135,14 +135,14 @@ flowchart LR
 ```mermaid
 flowchart TD
   Question[question stem + options + gold answer] --> JudgeContext[Judge prompt context]
-  Response[llm_response[model_name]] --> JudgeContext
+  Response[llm_response.model_name] --> JudgeContext
   JudgeModel[JUDGE_MODEL] --> LLMJudge[LLM judge]
   JudgeContext --> LLMJudge
-  LLMJudge --> SaveJudge[Save llm_judge[model_name]]
+  LLMJudge --> SaveJudge[Save llm_judge.model_name]
 
   Response --> RegexRule[regex_judge_rule]
   RegexRule --> RegexJudge[Regex judge]
-  RegexJudge --> SaveRegex[Save regex_judge[model_name]]
+  RegexJudge --> SaveRegex[Save regex_judge.model_name]
 
   SaveJudge --> DB[(PostgreSQL)]
   SaveRegex --> DB
@@ -239,4 +239,39 @@ classDiagram
   StudioDataset --> Source
   StudioDataset --> QuestionRecord
   QuestionRecord --> Question
+```
+## Runtime Architecture
+
+```mermaid
+flowchart LR
+    subgraph Host["Host Machine"]
+        Profiler["system_profiler FastAPI\n127.0.0.1:6346"]
+    end
+
+    subgraph Docker["Docker Compose"]
+        Frontend["Vue Frontend\nlocalhost:6325"]
+        Backend["Django API\nlocalhost:6341"]
+        Worker["Celery Worker"]
+        Rabbit["RabbitMQ"]
+        Postgres["PostgreSQL"]
+    end
+
+    Frontend -->|Business API| Backend
+    Frontend -->|/snapshot /history /stream| Profiler
+    Backend --> Rabbit
+    Worker --> Rabbit
+    Backend --> Postgres
+    Worker --> Postgres
+```
+
+## Benchmark Queue
+
+```mermaid
+flowchart TD
+    UI["Vue Task Queue"] --> Create["Create Run"]
+    Create --> Translation["Translation Tasks\none per dataset + language"]
+    Create --> Benchmark["Benchmark Tasks\none per model + dataset + language"]
+    Translation --> Benchmark
+    Benchmark --> Worker["Celery Worker"]
+    Worker --> Results["PostgreSQL Results"]
 ```

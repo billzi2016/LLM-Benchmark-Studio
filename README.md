@@ -330,7 +330,7 @@ docker compose up --build -d
 Open:
 
 ```text
-Frontend: http://localhost:6342
+Frontend: http://localhost:6325
 Backend:  http://localhost:6341/api/system/status
 Swagger:  http://localhost:6341/api/docs
 OpenAPI:  http://localhost:6341/api/openapi.json
@@ -341,7 +341,7 @@ RabbitMQ: http://localhost:15672
 
 ![RabbitMQ management overview](images/rabbitmq.png)
 
-The browser calls API paths through the frontend origin, for example `http://localhost:6342/api/system/status`. Vite proxies `/api` to `http://backend:8000` inside the Docker network.
+The browser calls API paths through the frontend origin, for example `http://localhost:6325/api/system/status`. Vite proxies `/api` to `http://backend:8000` inside the Docker network.
 
 The backend container runs database migrations automatically on startup. To run migrations manually:
 

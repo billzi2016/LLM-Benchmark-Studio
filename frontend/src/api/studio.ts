@@ -4,7 +4,6 @@ import type {
   DatasetSummary,
   Language,
   LlmModel,
-  ProviderInfo,
   SystemProfilerHistory,
   SystemStatus
 } from '../types/studio'
@@ -41,10 +40,6 @@ export function fetchDatasets() {
   return getJson<DatasetSummary[]>('/api/datasets')
 }
 
-export function fetchProviders() {
-  return getJson<ProviderInfo[]>('/api/llms/providers')
-}
-
 export function fetchRuns() {
   return getJson<BenchmarkRun[]>('/api/tasks/runs')
 }
@@ -67,4 +62,8 @@ export function pauseRun(runId: string) {
 
 export function stopRun(runId: string) {
   return postJson<BenchmarkRun>(`/api/tasks/runs/${runId}/stop`)
+}
+
+export function deleteRunTasks(runId: string, payload: { task_ids: string[] }) {
+  return postJson<BenchmarkRun | null>(`/api/tasks/runs/${runId}/delete`, payload)
 }

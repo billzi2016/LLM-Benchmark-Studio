@@ -22,6 +22,10 @@ class PlayRunRequest(Schema):
     task_ids: list[str] = []
 
 
+class DeleteTasksRequest(Schema):
+    task_ids: list[str]
+
+
 @router.get("/runs", response=OkResponse)
 def list_runs(request):  # noqa: ANN001
     runs = BenchmarkRun.objects.prefetch_related("tasks").all()[:10]
@@ -78,4 +82,27 @@ def stop_run(request, run_id: str):  # noqa: ANN001
         run.save(update_fields=["status", "updated_at"])
         run.tasks.exclude(status=RunStatus.COMPLETED).update(status=RunStatus.STOPPED)
     run = BenchmarkRun.objects.prefetch_related("tasks").get(id=run_id)
+    return {"ok": True, "data": serialize_run(run), "meta": {}}
+
+
+@router.post("/runs/{run_id}/delete", response=OkResponse)
+def delete_run_tasks(request, run_id: str, payload: DeleteTasksRequest):  # noqa: ANN001
+    run = get_object_or_404(BenchmarkRun, id=run_id)
+    if payload.task_ids:
+        run.tasks.filter(id__in=payload.task_ids).delete()
+    run = BenchmarkRun.objects.prefetch_related("tasks").get(id=run_id)
+    if not run.tasks.exists():
+        run.delete()
+        return {"ok": True, "data": None, "meta": {"deleted_run_id": run_id}}
+    run.total_tasks = run.tasks.count()
+    run.completed_tasks = run.tasks.filter(status=RunStatus.COMPLETED).count()
+    if run.completed_tasks == run.total_tasks:
+        run.status = RunStatus.COMPLETED
+    elif run.tasks.filter(status=RunStatus.RUNNING).exists():
+        run.status = RunStatus.RUNNING
+    elif run.tasks.filter(status=RunStatus.PAUSED).exists():
+        run.status = RunStatus.PAUSED
+    else:
+        run.status = RunStatus.PENDING
+    run.save(update_fields=["total_tasks", "completed_tasks", "status", "updated_at"])
     return {"ok": True, "data": serialize_run(run), "meta": {}}

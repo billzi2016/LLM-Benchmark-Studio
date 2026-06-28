@@ -7,11 +7,11 @@ import {
   fetchModels,
   fetchProfilerHistory,
   fetchProfilerSnapshot,
-  fetchProviders,
   fetchRun,
   fetchRuns,
   fetchSystemStatus,
   openProfilerSystemStream,
+  deleteRunTasks,
   pauseRun,
   playRun,
   stopRun
@@ -51,6 +51,14 @@ let systemStream: EventSource | null = null
 let profilerHistoryTimer: ReturnType<typeof setInterval> | null = null
 
 export const useStudioStore = defineStore('studio', {
+  getters: {
+    visibleProviders(state) {
+      return state.providers
+    },
+    visibleModels(state) {
+      return state.models.filter((model) => model.provider === state.selectedProviderName)
+    }
+  },
   state: () => ({
     systemStatus: null as SystemStatus | null,
     providers: [] as ProviderInfo[],
@@ -63,9 +71,16 @@ export const useStudioStore = defineStore('studio', {
     currentRun: null as BenchmarkRun | null,
     tasks: [] as StudioTask[],
     selectedTaskIds: [] as string[],
+    selectedProviderName: 'ollama',
     selectedModelNames: [] as string[],
     selectedDatasetNames: [] as string[],
     selectedLanguageCodes: ['en'] as string[],
+    panelWidths: {
+      system: 0.95,
+      llms: 1.25,
+      datasets: 1.45,
+      queue: 1.2
+    } as Record<string, number>,
     loadError: '',
     loading: false
   }),
@@ -79,6 +94,19 @@ export const useStudioStore = defineStore('studio', {
       this.currentRun = runs[0] ?? null
       this.rebuildTaskList()
       this.syncSelectedTasks()
+    },
+    syncSelectedProvider() {
+      const availableProviders = this.providers.map((provider) => provider.provider)
+      if (!availableProviders.length) {
+        return
+      }
+      if (availableProviders.includes(this.selectedProviderName)) {
+        return
+      }
+      this.selectedProviderName =
+        this.systemStatus?.providers.default_provider && availableProviders.includes(this.systemStatus.providers.default_provider)
+          ? this.systemStatus.providers.default_provider
+          : availableProviders[0]
     },
     upsertRun(run: BenchmarkRun | null) {
       if (!run) {
@@ -95,15 +123,14 @@ export const useStudioStore = defineStore('studio', {
       this.syncSelectedTasks()
     },
     syncSelectedTasks() {
-      const available = new Set(
-        this.tasks.filter((task) => !['completed', 'error'].includes(task.status)).map((task) => task.id)
-      )
+      const available = new Set(this.tasks.map((task) => task.id))
       this.selectedTaskIds = this.selectedTaskIds.filter((id) => available.has(id))
-      if (!this.selectedTaskIds.length) {
-        this.selectedTaskIds = this.tasks
-          .filter((task) => !['completed', 'error'].includes(task.status))
-          .map((task) => task.id)
-      }
+    },
+    removeRun(runId: string) {
+      this.recentRuns = this.recentRuns.filter((run) => run.id !== runId)
+      this.currentRun = this.recentRuns[0] ?? null
+      this.rebuildTaskList()
+      this.syncSelectedTasks()
     },
     ensurePolling() {
       if (pollTimer || !this.currentRun) {
@@ -166,12 +193,11 @@ export const useStudioStore = defineStore('studio', {
       this.loading = true
       this.loadError = ''
       try {
-        const [systemStatus, profilerSnapshot, profilerHistory, providers, models, datasets, languages, runs] =
+        const [systemStatus, profilerSnapshot, profilerHistory, models, datasets, languages, runs] =
           await Promise.allSettled([
           fetchSystemStatus(),
           fetchProfilerSnapshot(),
           fetchProfilerHistory(),
-          fetchProviders(),
           fetchModels(),
           fetchDatasets(),
           fetchLanguages(),
@@ -179,6 +205,8 @@ export const useStudioStore = defineStore('studio', {
           ])
         if (systemStatus.status === 'fulfilled') {
           this.systemStatus = systemStatus.value
+          this.providers = systemStatus.value.providers.available
+          this.syncSelectedProvider()
         }
         if (profilerSnapshot.status === 'fulfilled') {
           this.profilerSnapshot = profilerSnapshot.value
@@ -187,9 +215,6 @@ export const useStudioStore = defineStore('studio', {
         if (profilerHistory.status === 'fulfilled') {
           this.profilerHistory = profilerHistory.value
           this.ensureProfilerHistoryPolling()
-        }
-        if (providers.status === 'fulfilled') {
-          this.providers = providers.value
         }
         if (models.status === 'fulfilled') {
           this.models = models.value.filter(isGenerationModel)
@@ -206,14 +231,21 @@ export const useStudioStore = defineStore('studio', {
             this.ensurePolling()
           }
         }
-        const failed = [systemStatus, profilerSnapshot, profilerHistory, providers, models, datasets, languages, runs].filter(
-          (result) => result.status === 'rejected'
-        )
+        const resultPairs = [
+          ['system status', systemStatus],
+          ['profiler snapshot', profilerSnapshot],
+          ['profiler history', profilerHistory],
+          ['models', models],
+          ['datasets', datasets],
+          ['languages', languages],
+          ['runs', runs]
+        ] as const
+        const failed = resultPairs.filter(([, result]) => result.status === 'rejected')
         if (failed.length) {
-          this.loadError = `${failed.length} API request${failed.length === 1 ? '' : 's'} failed`
+          this.loadError = failed.map(([name]) => name).join(', ')
         }
         if (!this.selectedModelNames.length) {
-          this.selectedModelNames = this.models.slice(0, 2).map((model) => model.name)
+          this.selectedModelNames = this.visibleModels.slice(0, 2).map((model) => model.name)
         }
         if (!this.selectedDatasetNames.length) {
           this.selectedDatasetNames = this.datasets.slice(0, 3).map((dataset) => dataset.dataset_name)
@@ -232,6 +264,18 @@ export const useStudioStore = defineStore('studio', {
         this.selectedModelNames.push(modelName)
       }
     },
+    selectProvider(providerName: string) {
+      if (this.selectedProviderName === providerName) {
+        return
+      }
+      this.selectedProviderName = providerName
+      this.selectedModelNames = this.selectedModelNames.filter((modelName) =>
+        this.models.some((model) => model.name === modelName && model.provider === providerName)
+      )
+      if (!this.selectedModelNames.length) {
+        this.selectedModelNames = this.visibleModels.slice(0, 2).map((model) => model.name)
+      }
+    },
     toggleDataset(datasetName: string) {
       if (this.selectedDatasetNames.includes(datasetName)) {
         this.selectedDatasetNames = this.selectedDatasetNames.filter((item) => item !== datasetName)
@@ -246,17 +290,44 @@ export const useStudioStore = defineStore('studio', {
         this.selectedTaskIds.push(taskId)
       }
     },
-    selectAllUnfinishedTasks() {
-      this.selectedTaskIds = this.tasks
-        .filter((task) => !['completed', 'error'].includes(task.status))
-        .map((task) => task.id)
+    selectAllTasks() {
+      this.selectedTaskIds = this.tasks.map((task) => task.id)
     },
-    invertUnfinishedTaskSelection() {
-      const unfinished = this.tasks
-        .filter((task) => !['completed', 'error'].includes(task.status))
-        .map((task) => task.id)
+    invertTaskSelection() {
+      const allTaskIds = this.tasks.map((task) => task.id)
       const selected = new Set(this.selectedTaskIds)
-      this.selectedTaskIds = unfinished.filter((id) => !selected.has(id))
+      this.selectedTaskIds = allTaskIds.filter((id) => !selected.has(id))
+    },
+    async deleteSelectedTasks() {
+      if (!this.selectedTaskIds.length) {
+        return
+      }
+      const taskIdsByRun = this.selectedTaskIds.reduce<Record<string, string[]>>((accumulator, taskId) => {
+        const task = this.tasks.find((item) => item.id === taskId)
+        if (!task) {
+          return accumulator
+        }
+        accumulator[task.run_group_id] ??= []
+        accumulator[task.run_group_id].push(taskId)
+        return accumulator
+      }, {})
+      for (const [runId, taskIds] of Object.entries(taskIdsByRun)) {
+        const run = await deleteRunTasks(runId, { task_ids: taskIds })
+        if (!run) {
+          this.removeRun(runId)
+          continue
+        }
+        this.upsertRun(run)
+      }
+      this.selectedTaskIds = []
+      this.syncSelectedTasks()
+    },
+    setPanelWidth(panel: string, width: number) {
+      const clamped = Math.min(2.2, Math.max(0.72, width))
+      this.panelWidths = {
+        ...this.panelWidths,
+        [panel]: clamped
+      }
     },
     async createPreviewTasks() {
       const run = await createRun({
@@ -279,8 +350,13 @@ export const useStudioStore = defineStore('studio', {
         return
       }
       const activeTaskIds = this.selectedTaskIds.length
-        ? this.selectedTaskIds
-        : this.tasks.filter((task) => !['completed', 'error'].includes(task.status)).map((task) => task.id)
+        ? this.selectedTaskIds.filter((taskId) => this.currentRun?.tasks.some((task) => task.id === taskId))
+        : (this.currentRun?.tasks ?? [])
+            .filter((task) => !['completed', 'error'].includes(task.status))
+            .map((task) => task.id)
+      if (!activeTaskIds.length) {
+        return
+      }
       const startingRun: BenchmarkRun = {
         ...this.currentRun,
         status: 'starting',

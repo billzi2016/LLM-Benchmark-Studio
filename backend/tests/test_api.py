@@ -13,6 +13,9 @@ class ApiTests(SimpleTestCase):
         payload = response.json()
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["data"]["service"], "django")
+        service_names = {service["name"] for service in payload["data"]["services"]}
+        self.assertIn("system_profiler", service_names)
+        self.assertIn("available", payload["data"]["providers"])
 
     def test_models(self) -> None:
         response = self.client.get("/api/models")

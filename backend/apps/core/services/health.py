@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import socket
 from typing import Any
+from urllib import error as urllib_error
+from urllib import request as urllib_request
 
 from config.celery import app as celery_app
 from apps.datasets.catalog import scan_datasets
@@ -58,24 +60,67 @@ def check_tcp(name: str, label: str, host: str, port: int) -> dict[str, Any]:
     return ok_service(name, label, f"{host}:{port}")
 
 
-def check_providers(settings: Any) -> list[dict[str, Any]]:
-    services: list[dict[str, Any]] = []
+def build_provider_statuses(settings: Any) -> list[dict[str, Any]]:
+    providers: list[dict[str, Any]] = []
     for provider_name, config in sorted(settings.LLM_PROVIDERS.items()):
-        label = f"Provider: {provider_name}"
+        detail = str(config.get("base_url") or "")
         if not config.get("enabled"):
-            services.append(disabled_service(f"provider_{provider_name}", label))
+            providers.append(
+                {
+                    "provider": config["provider"],
+                    "protocol": config["protocol"],
+                    "base_url": config["base_url"],
+                    "enabled": config["enabled"],
+                    "api_key_configured": bool(config.get("api_key")),
+                    "status": "off",
+                    "detail": "disabled",
+                    "model_count": None,
+                }
+            )
             continue
         try:
             health = get_provider(provider_name, settings.LLM_PROVIDERS).health()
         except Exception as exc:  # noqa: BLE001
-            services.append(error_service(f"provider_{provider_name}", label, exc))
+            providers.append(
+                {
+                    "provider": config["provider"],
+                    "protocol": config["protocol"],
+                    "base_url": config["base_url"],
+                    "enabled": config["enabled"],
+                    "api_key_configured": bool(config.get("api_key")),
+                    "status": "error",
+                    "detail": f"{exc.__class__.__name__}: {exc}",
+                    "model_count": None,
+                }
+            )
             continue
         model_count = health.get("model_count")
-        detail = str(config.get("base_url") or "")
         if model_count is not None:
             detail = f"{detail} · {model_count} models"
-        services.append(ok_service(f"provider_{provider_name}", label, detail))
-    return services
+        providers.append(
+            {
+                "provider": config["provider"],
+                "protocol": config["protocol"],
+                "base_url": config["base_url"],
+                "enabled": config["enabled"],
+                "api_key_configured": bool(config.get("api_key")),
+                "status": "ok",
+                "detail": detail,
+                "model_count": model_count,
+            }
+        )
+    return providers
+
+
+def check_system_profiler(settings: Any) -> dict[str, Any]:
+    url = f"http://{settings.SYSTEM_PROFILER_HOST}:{settings.SYSTEM_PROFILER_PORT}/health"
+    try:
+        with urllib_request.urlopen(url, timeout=2) as response:  # noqa: S310
+            if response.status >= 400:
+                raise urllib_error.HTTPError(url, response.status, "Profiler health failed", None, None)
+    except Exception as exc:  # noqa: BLE001
+        return error_service("system_profiler", "System Profiler", exc)
+    return ok_service("system_profiler", "System Profiler", f"{settings.SYSTEM_PROFILER_HOST}:{settings.SYSTEM_PROFILER_PORT}")
 
 
 def check_celery_worker() -> dict[str, Any]:
@@ -94,12 +139,13 @@ def build_system_status(settings: Any) -> dict[str, Any]:
     languages = load_languages(settings.LANGUAGES_PATH)
     datasets = scan_datasets(settings.BENCHMARK_DATASETS_DIR)
     snapshot = collect_system_snapshot()
+    provider_statuses = build_provider_statuses(settings)
     services = [
         ok_service("backend", "Django API", "running"),
         check_database(),
         check_tcp("rabbitmq", "RabbitMQ", settings.RABBITMQ_HOST, settings.RABBITMQ_PORT),
         check_celery_worker(),
-        *check_providers(settings),
+        check_system_profiler(settings),
     ]
     return {
         "service": "django",
@@ -119,13 +165,9 @@ def build_system_status(settings: Any) -> dict[str, Any]:
             "translate_model": settings.TRANSLATE_MODEL,
             "available": [
                 {
-                    "provider": config["provider"],
-                    "protocol": config["protocol"],
-                    "base_url": config["base_url"],
-                    "enabled": config["enabled"],
-                    "api_key_configured": bool(config.get("api_key")),
+                    **provider,
                 }
-                for config in settings.LLM_PROVIDERS.values()
+                for provider in provider_statuses
             ],
         },
         "contexts": {

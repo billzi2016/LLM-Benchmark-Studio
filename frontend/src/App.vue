@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { Activity, Database, Download, Languages, Pause, Play, RefreshCw, Square, Workflow } from 'lucide-vue-next'
 
 import { useStudioStore } from './stores/studioStore'
@@ -8,6 +8,9 @@ import StatusBadge from './components/shared/StatusBadge.vue'
 import { sortedTasks } from './utils/taskOrdering'
 
 const store = useStudioStore()
+const activeResize = ref<null | { panel: string; startX: number; startWidth: number }>(null)
+const visibleModels = computed(() => store.visibleModels)
+const visibleProviders = computed(() => store.visibleProviders)
 
 function formatEta(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
@@ -40,6 +43,10 @@ function formatMetricPercent(value: number | null | undefined): string {
 function formatLanguageName(code: string): string {
   const language = store.languages.find((item) => item.code === code)
   return language?.name ?? code
+}
+
+function formatProviderDetail(provider: { detail?: string; protocol: string; base_url: string }): string {
+  return provider.detail ?? `${provider.protocol} · ${provider.base_url}`
 }
 
 function metricSeries(metric: 'cpu' | 'gpu' | 'memory' | 'disk'): number[] {
@@ -107,6 +114,30 @@ function profilerMetricPercent(metric: 'cpu' | 'gpu' | 'disk'): string {
 onMounted(() => {
   void store.loadInitialData()
 })
+
+function beginResize(panel: string, event: MouseEvent) {
+  activeResize.value = {
+    panel,
+    startX: event.clientX,
+    startWidth: store.panelWidths[panel]
+  }
+  window.addEventListener('mousemove', handleResize)
+  window.addEventListener('mouseup', stopResize)
+}
+
+function handleResize(event: MouseEvent) {
+  if (!activeResize.value) {
+    return
+  }
+  const delta = (event.clientX - activeResize.value.startX) / window.innerWidth
+  store.setPanelWidth(activeResize.value.panel, activeResize.value.startWidth + delta * 4)
+}
+
+function stopResize() {
+  activeResize.value = null
+  window.removeEventListener('mousemove', handleResize)
+  window.removeEventListener('mouseup', stopResize)
+}
 </script>
 
 <template>
@@ -128,7 +159,12 @@ onMounted(() => {
       </div>
     </header>
 
-    <section class="workspace-grid">
+    <section
+      class="workspace-grid"
+      :style="{
+        gridTemplateColumns: `${store.panelWidths.system}fr 6px ${store.panelWidths.llms}fr 6px ${store.panelWidths.datasets}fr 6px ${store.panelWidths.queue}fr`
+      }"
+    >
       <aside class="panel system-panel">
         <div class="panel-heading">
           <Activity :size="18" />
@@ -201,15 +237,23 @@ onMounted(() => {
         </div>
         <div class="list-section">
           <h3>Providers</h3>
-          <div v-for="provider in store.providers" :key="provider.provider" class="row-item">
-            <div>
+          <button
+            v-for="provider in visibleProviders"
+            :key="provider.provider"
+            type="button"
+            class="row-item provider-row"
+            :class="{ selected: store.selectedProviderName === provider.provider }"
+            @click="store.selectProvider(provider.provider)"
+          >
+            <div class="provider-copy">
               <strong>{{ provider.provider }}</strong>
-              <span>{{ provider.protocol }} · {{ provider.base_url }}</span>
+              <span>{{ formatProviderDetail(provider) }}</span>
             </div>
-            <StatusBadge :status="provider.enabled ? 'on' : 'off'" />
-          </div>
+            <StatusBadge :status="provider.status ?? (provider.enabled ? 'on' : 'off')" />
+          </button>
         </div>
       </aside>
+      <div class="panel-resizer" @mousedown="beginResize('system', $event)"></div>
 
       <aside class="panel">
         <div class="panel-heading">
@@ -218,7 +262,7 @@ onMounted(() => {
         </div>
         <div class="scroll-list">
           <button
-            v-for="model in store.models"
+            v-for="model in visibleModels"
             :key="model.name"
             class="model-row"
             :class="{ selected: store.selectedModelNames.includes(model.name) }"
@@ -228,8 +272,13 @@ onMounted(() => {
             <span class="model-name">{{ model.name }}</span>
             <span class="model-meta">{{ model.provider }} · {{ model.supports_think ? 'Think' : 'Direct' }}</span>
           </button>
+          <div v-if="!visibleModels.length" class="row-item empty-row">
+            <strong>No models</strong>
+            <span>No installed generation model for {{ store.selectedProviderName }}.</span>
+          </div>
         </div>
       </aside>
+      <div class="panel-resizer" @mousedown="beginResize('llms', $event)"></div>
 
       <section class="panel datasets-panel">
         <div class="panel-heading">
@@ -265,6 +314,7 @@ onMounted(() => {
           Create Model-First Queue
         </button>
       </section>
+      <div class="panel-resizer" @mousedown="beginResize('datasets', $event)"></div>
 
       <aside class="panel tasks-panel">
         <div class="panel-heading">
@@ -275,8 +325,9 @@ onMounted(() => {
           <button type="button" title="Play" @click="store.playQueue"><Play :size="16" /></button>
           <button type="button" title="Pause" @click="store.pauseQueue"><Pause :size="16" /></button>
           <button type="button" title="Stop" @click="store.stopQueue"><Square :size="16" /></button>
-          <button type="button" title="Select all unfinished" @click="store.selectAllUnfinishedTasks()">All</button>
-          <button type="button" title="Invert unfinished selection" @click="store.invertUnfinishedTaskSelection()">Invert</button>
+          <button type="button" title="Select all tasks" @click="store.selectAllTasks()">All</button>
+          <button type="button" title="Invert task selection" @click="store.invertTaskSelection()">Invert</button>
+          <button type="button" title="Delete selected tasks" @click="store.deleteSelectedTasks()">Delete</button>
         </div>
         <div class="scroll-list task-list">
           <div
@@ -288,7 +339,7 @@ onMounted(() => {
               'task-row-completed': task.status === 'completed'
             }"
           >
-            <label v-if="!['completed', 'error'].includes(task.status)" class="task-select-row">
+            <label class="task-select-row">
               <input
                 type="checkbox"
                 :checked="store.selectedTaskIds.includes(task.id)"

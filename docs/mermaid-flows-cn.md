@@ -6,7 +6,7 @@
 
 ```mermaid
 flowchart LR
-  User[用户浏览器] -->|http://localhost:6342| Vue[Vue Vite 前端]
+  User[用户浏览器] -->|http://localhost:6325| Vue[Vue Vite 前端]
   Vue -->|REST API| Django[Django Ninja API]
   Vue -->|后续 SSE| Django
 
@@ -43,7 +43,7 @@ flowchart TD
   Backend --> Frontend[frontend service]
   Frontend --> Pnpm[pnpm install --frozen-lockfile]
   Pnpm --> Vite[Vite dev server 0.0.0.0:5173]
-  Vite --> HostUI[宿主机端口 6342]
+  Vite --> HostUI[宿主机端口 6325]
 
   PG --> PGData[./.docker/postgres/data]
 ```
@@ -102,7 +102,7 @@ sequenceDiagram
   Worker->>DB: 读取数据集题目
   Worker->>LLM: prompt 包含题干、选项和严格输出规则
   LLM-->>Worker: 只返回最终答案
-  Worker->>DB: 保存 llm_response[model_name]
+  Worker->>DB: 保存 llm_response.model_name
   Worker->>DB: 标记任务完成
   UI->>API: 轮询或 SSE 获取进度
   API-->>UI: 返回任务状态
@@ -135,14 +135,14 @@ flowchart LR
 ```mermaid
 flowchart TD
   Question[题干 + 选项 + 标准答案] --> JudgeContext[Judge prompt 上下文]
-  Response[llm_response[model_name]] --> JudgeContext
+  Response[llm_response.model_name] --> JudgeContext
   JudgeModel[JUDGE_MODEL] --> LLMJudge[LLM judge]
   JudgeContext --> LLMJudge
-  LLMJudge --> SaveJudge[保存 llm_judge[model_name]]
+  LLMJudge --> SaveJudge[保存 llm_judge.model_name]
 
   Response --> RegexRule[regex_judge_rule]
   RegexRule --> RegexJudge[Regex judge]
-  RegexJudge --> SaveRegex[保存 regex_judge[model_name]]
+  RegexJudge --> SaveRegex[保存 regex_judge.model_name]
 
   SaveJudge --> DB[(PostgreSQL)]
   SaveRegex --> DB
@@ -239,4 +239,39 @@ classDiagram
   StudioDataset --> Source
   StudioDataset --> QuestionRecord
   QuestionRecord --> Question
+```
+## 运行架构
+
+```mermaid
+flowchart LR
+    subgraph Host["宿主机"]
+        Profiler["system_profiler FastAPI\n127.0.0.1:6346"]
+    end
+
+    subgraph Docker["Docker Compose"]
+        Frontend["Vue 前端\nlocalhost:6325"]
+        Backend["Django API\nlocalhost:6341"]
+        Worker["Celery Worker"]
+        Rabbit["RabbitMQ"]
+        Postgres["PostgreSQL"]
+    end
+
+    Frontend -->|业务 API| Backend
+    Frontend -->|/snapshot /history /stream| Profiler
+    Backend --> Rabbit
+    Worker --> Rabbit
+    Backend --> Postgres
+    Worker --> Postgres
+```
+
+## 测评队列
+
+```mermaid
+flowchart TD
+    UI["Vue 任务队列"] --> Create["创建 Run"]
+    Create --> Translation["翻译任务\n每个 数据集 + 语言 只翻译一次"]
+    Create --> Benchmark["测评任务\n每个 模型 + 数据集 + 语言 一条"]
+    Translation --> Benchmark
+    Benchmark --> Worker["Celery Worker"]
+    Worker --> Results["PostgreSQL 结果"]
 ```

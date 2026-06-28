@@ -120,8 +120,14 @@ USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", ["http://localhost:5173"])
-CORS_ALLOWED_ORIGINS = env_list("FRONTEND_ALLOWED_ORIGINS", ["http://localhost:5173"])
+CSRF_TRUSTED_ORIGINS = env_list(
+    "CSRF_TRUSTED_ORIGINS",
+    ["http://localhost:6325", "http://127.0.0.1:6325", "http://localhost:5173", "http://127.0.0.1:5173"],
+)
+CORS_ALLOWED_ORIGINS = env_list(
+    "FRONTEND_ALLOWED_ORIGINS",
+    ["http://localhost:6325", "http://127.0.0.1:6325", "http://localhost:5173", "http://127.0.0.1:5173"],
+)
 CORS_ALLOW_CREDENTIALS = True
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -202,6 +208,8 @@ LLM_PROVIDERS = {
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", "5672"))
+SYSTEM_PROFILER_HOST = os.getenv("SYSTEM_PROFILER_HOST", "127.0.0.1")
+SYSTEM_PROFILER_PORT = int(os.getenv("SYSTEM_PROFILER_PORT", "6346"))
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672//")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "django-db")
 CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "llm_benchmark.serial")

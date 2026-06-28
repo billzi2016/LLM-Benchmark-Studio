@@ -84,8 +84,8 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
       CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672//
-      FRONTEND_ALLOWED_ORIGINS: ${FRONTEND_ALLOWED_ORIGINS:-http://localhost:6342}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:6342}
+      FRONTEND_ALLOWED_ORIGINS: ${FRONTEND_ALLOWED_ORIGINS:-http://localhost:6325,http://127.0.0.1:6325}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost:6325,http://127.0.0.1:6325}
       OLLAMA_BASE_URL: ${OLLAMA_DOCKER_BASE_URL:-http://host.docker.internal:11434}
       VLLM_HOST: ${VLLM_HOST:-localhost}
       VLLM_PORT: ${VLLM_PORT:-8000}
@@ -170,7 +170,7 @@ services:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
       VITE_PROXY_TARGET: ${VITE_PROXY_TARGET:-http://backend:8000}
     ports:
-      - "${FRONTEND_PORT:-6342}:5173"
+      - "${FRONTEND_PORT:-6325}:5173"
     volumes:
       - .:/app
       - frontend_node_modules:/app/frontend/node_modules

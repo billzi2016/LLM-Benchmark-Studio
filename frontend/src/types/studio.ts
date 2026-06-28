@@ -9,6 +9,7 @@ export interface SystemStatus {
     judge_model: string
     translate_provider: string
     translate_model: string
+    available: ProviderInfo[]
   }
   contexts: {
     think: number
@@ -98,6 +99,9 @@ export interface ProviderInfo {
   base_url: string
   enabled: boolean
   api_key_configured: boolean
+  status?: string
+  detail?: string
+  model_count?: number | null
 }
 
 export interface LlmModel {

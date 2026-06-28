@@ -122,6 +122,30 @@
   background: #ffffff;
 }
 
+.provider-row {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.provider-row.selected {
+  border-color: #1f6feb;
+  background: #eef5ff;
+}
+
+.provider-copy {
+  min-width: 0;
+}
+
+.empty-row {
+  display: grid;
+  gap: 4px;
+}
+
 .health-row {
   display: flex;
   justify-content: space-between;

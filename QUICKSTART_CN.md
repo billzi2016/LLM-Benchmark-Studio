@@ -57,7 +57,7 @@ Vue 前端会直接读取这个 FastAPI 服务的系统监控数据。
 
 启动完成后访问：
 
-- 前端：`http://localhost:6342`
+- 前端：`http://localhost:6325`
 - 后端 API：`http://localhost:6341/api/system/status`
 - Swagger：`http://localhost:6341/api/docs`
 - OpenAPI JSON：`http://localhost:6341/api/openapi.json`

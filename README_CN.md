@@ -45,7 +45,7 @@ docs/mermaid-flows-cn.md
 当前前端默认端口是：
 
 ```text
-6342
+6325
 ```
 
 ## 目录结构
@@ -101,7 +101,7 @@ PYTHONPATH=backend python3 -m uvicorn system_profiler.api:app --host 127.0.0.1 -
 启动后访问：
 
 ```text
-前端: http://localhost:6342
+前端: http://localhost:6325
 后端: http://localhost:6341/api/system/status
 Swagger: http://localhost:6341/api/docs
 OpenAPI JSON: http://localhost:6341/api/openapi.json
@@ -278,13 +278,13 @@ pnpm --dir frontend dev
 前端默认地址：
 
 ```text
-http://localhost:6342
+http://localhost:6325
 ```
 
 前端会通过 Vite proxy 调用 Django：
 
 ```text
-浏览器 -> http://localhost:6342/api
+浏览器 -> http://localhost:6325/api
 Vite proxy -> http://backend:8000/api
 ```
 
