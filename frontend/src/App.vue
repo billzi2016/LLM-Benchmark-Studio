@@ -322,12 +322,12 @@ function stopResize() {
           <h2>Task Queue</h2>
         </div>
         <div class="task-controls">
-          <button type="button" title="Play" @click="store.playQueue"><Play :size="16" /></button>
-          <button type="button" title="Pause" @click="store.pauseQueue"><Pause :size="16" /></button>
-          <button type="button" title="Stop" @click="store.stopQueue"><Square :size="16" /></button>
-          <button type="button" title="Select all tasks" @click="store.selectAllTasks()">All</button>
-          <button type="button" title="Invert task selection" @click="store.invertTaskSelection()">Invert</button>
-          <button type="button" title="Delete selected tasks" @click="store.deleteSelectedTasks()">Delete</button>
+          <button class="task-action task-action-neutral" type="button" title="Select all tasks" @click="store.selectAllTasks()">Select All</button>
+          <button class="task-action task-action-neutral" type="button" title="Invert task selection" @click="store.invertTaskSelection()">Invert</button>
+          <button class="task-action task-action-play" type="button" title="Play" @click="store.playQueue"><Play :size="16" /></button>
+          <button class="task-action task-action-pause" type="button" title="Pause" @click="store.pauseQueue"><Pause :size="16" /></button>
+          <button class="task-action task-action-stop" type="button" title="Stop" @click="store.stopQueue"><Square :size="16" /></button>
+          <button class="task-action task-action-delete" type="button" title="Delete selected tasks" @click="store.deleteSelectedTasks()">Delete</button>
         </div>
         <div class="scroll-list task-list">
           <div
