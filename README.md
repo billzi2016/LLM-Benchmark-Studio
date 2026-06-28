@@ -279,7 +279,7 @@ Then start the host system profiler:
 PYTHONPATH=backend python3 -m uvicorn system_profiler.api:app --host 127.0.0.1 --port 6346
 ```
 
-The frontend reads profiler data directly from:
+The frontend reads profiler data directly from Vue, without proxying or re-checking it through Django:
 
 ```text
 http://127.0.0.1:6346

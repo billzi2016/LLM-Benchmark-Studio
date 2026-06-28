@@ -78,7 +78,7 @@ POSTGRES_PORT=5432
 POSTGRES_HOST_PORT=55432
 ```
 
-测评主栈跑在 Docker 里，但系统监控不放进 Docker。`backend/system_profiler` 现在作为一个单独的宿主机 FastAPI 服务启动，这样前端才能读取更接近真实机器的 CPU、内存、磁盘、网络和尽力而为的 GPU 指标。
+测评主栈跑在 Docker 里，但系统监控不放进 Docker。`backend/system_profiler` 现在作为一个单独的宿主机 FastAPI 服务启动，这样前端才能直接读取更接近真实机器的 CPU、内存、磁盘、网络和尽力而为的 GPU 指标；Django 不会代理或二次检查它。
 
 先在项目根目录运行：
 

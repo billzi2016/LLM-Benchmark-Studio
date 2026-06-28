@@ -28,6 +28,15 @@ import type {
   SystemStatus
 } from '../types/studio'
 
+function makeProfilerService(status: 'error' | 'loading' | 'ok', detail: string) {
+  return {
+    name: 'system_profiler',
+    label: 'System Profiler',
+    status,
+    detail
+  }
+}
+
 function isGenerationModel(model: LlmModel): boolean {
   const modelType = String(model.metadata.type ?? 'generation').toLowerCase()
   const modelRole = String(model.metadata.role ?? '').toLowerCase()
@@ -57,6 +66,17 @@ export const useStudioStore = defineStore('studio', {
     },
     visibleModels(state) {
       return state.models.filter((model) => model.provider === state.selectedProviderName)
+    },
+    serviceHealth(state) {
+      const services = [...(state.systemStatus?.services ?? [])]
+      if (state.profilerSnapshot && state.profilerHistory) {
+        services.push(makeProfilerService('ok', 'direct Vue connection'))
+      } else if (state.profilerSnapshot || state.profilerHistory) {
+        services.push(makeProfilerService('loading', 'partial profiler data'))
+      } else {
+        services.push(makeProfilerService('error', 'direct Vue connection failed'))
+      }
+      return services
     }
   },
   state: () => ({
@@ -81,6 +101,7 @@ export const useStudioStore = defineStore('studio', {
       datasets: 1.45,
       queue: 1.2
     } as Record<string, number>,
+    profilerErrors: [] as string[],
     loadError: '',
     loading: false
   }),
@@ -169,8 +190,12 @@ export const useStudioStore = defineStore('studio', {
           data: SystemMetrics
         }
         this.profilerSnapshot = payload.data
+        this.profilerErrors = this.profilerErrors.filter((item) => item !== 'profiler stream')
       })
       systemStream.onerror = () => {
+        if (!this.profilerErrors.includes('profiler stream')) {
+          this.profilerErrors = [...this.profilerErrors, 'profiler stream']
+        }
         if (systemStream) {
           systemStream.close()
           systemStream = null
@@ -184,7 +209,11 @@ export const useStudioStore = defineStore('studio', {
       profilerHistoryTimer = setInterval(async () => {
         try {
           this.profilerHistory = await fetchProfilerHistory()
+          this.profilerErrors = this.profilerErrors.filter((item) => item !== 'profiler history')
         } catch {
+          if (!this.profilerErrors.includes('profiler history')) {
+            this.profilerErrors = [...this.profilerErrors, 'profiler history']
+          }
           return
         }
       }, 10000)
@@ -192,6 +221,7 @@ export const useStudioStore = defineStore('studio', {
     async loadInitialData() {
       this.loading = true
       this.loadError = ''
+      this.profilerErrors = []
       try {
         const [systemStatus, profilerSnapshot, profilerHistory, models, datasets, languages, runs] =
           await Promise.allSettled([
@@ -211,10 +241,14 @@ export const useStudioStore = defineStore('studio', {
         if (profilerSnapshot.status === 'fulfilled') {
           this.profilerSnapshot = profilerSnapshot.value
           this.ensureSystemStream()
+        } else {
+          this.profilerErrors.push('profiler snapshot')
         }
         if (profilerHistory.status === 'fulfilled') {
           this.profilerHistory = profilerHistory.value
           this.ensureProfilerHistoryPolling()
+        } else {
+          this.profilerErrors.push('profiler history')
         }
         if (models.status === 'fulfilled') {
           this.models = models.value.filter(isGenerationModel)
@@ -242,7 +276,8 @@ export const useStudioStore = defineStore('studio', {
         ] as const
         const failed = resultPairs.filter(([, result]) => result.status === 'rejected')
         if (failed.length) {
-          this.loadError = failed.map(([name]) => name).join(', ')
+          const failedNames = failed.map(([name]) => name).filter((name) => !String(name).startsWith('profiler '))
+          this.loadError = failedNames.join(', ')
         }
         if (!this.selectedModelNames.length) {
           this.selectedModelNames = this.visibleModels.slice(0, 2).map((model) => model.name)

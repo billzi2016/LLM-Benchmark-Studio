@@ -4,6 +4,7 @@ import type {
   DatasetSummary,
   Language,
   LlmModel,
+  SystemMetrics,
   SystemProfilerHistory,
   SystemStatus
 } from '../types/studio'
@@ -17,7 +18,7 @@ export function openSystemStream(intervalSeconds = 2) {
 }
 
 export function fetchProfilerSnapshot() {
-  return getProfilerJson<SystemStatus['metrics']>('/snapshot')
+  return getProfilerJson<SystemMetrics>('/snapshot')
 }
 
 export function fetchProfilerHistory() {

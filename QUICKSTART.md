@@ -51,7 +51,7 @@ This service exposes:
 - `http://127.0.0.1:6346/history`
 - `http://127.0.0.1:6346/stream`
 
-The Vue frontend reads system metrics directly from this FastAPI service.
+The Vue frontend reads system metrics and profiler health directly from this FastAPI service. Django does not proxy or re-check it.
 
 ## 4. Open the UI
 

@@ -2,7 +2,6 @@ export interface SystemStatus {
   service: string
   status: string
   services: SystemService[]
-  metrics: SystemMetrics
   providers: {
     default_provider: string
     judge_provider: string

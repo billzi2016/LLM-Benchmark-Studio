@@ -11,6 +11,7 @@ const store = useStudioStore()
 const activeResize = ref<null | { panel: string; startX: number; startWidth: number }>(null)
 const visibleModels = computed(() => store.visibleModels)
 const visibleProviders = computed(() => store.visibleProviders)
+const serviceHealth = computed(() => store.serviceHealth)
 
 function formatEta(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
@@ -170,7 +171,9 @@ function stopResize() {
           <Activity :size="18" />
           <h2>System</h2>
         </div>
-        <p v-if="store.loadError" class="inline-error">{{ store.loadError }}</p>
+        <p v-if="store.loadError || store.profilerErrors.length" class="inline-error">
+          {{ [store.loadError, ...store.profilerErrors].filter(Boolean).join(', ') }}
+        </p>
         <div class="metric-grid">
           <div class="metric">
             <span>Backend</span>
@@ -224,7 +227,7 @@ function stopResize() {
         <div class="list-section">
           <h3>Service Health</h3>
           <div
-            v-for="service in store.systemStatus?.services ?? []"
+            v-for="service in serviceHealth"
             :key="service.name"
             class="row-item health-row"
           >

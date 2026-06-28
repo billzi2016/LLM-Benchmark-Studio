@@ -51,7 +51,7 @@ PYTHONPATH=backend python3 -m uvicorn system_profiler.api:app --host 127.0.0.1 -
 - `http://127.0.0.1:6346/history`
 - `http://127.0.0.1:6346/stream`
 
-Vue 前端会直接读取这个 FastAPI 服务的系统监控数据。
+Vue 前端会直接读取这个 FastAPI 服务的系统监控数据和 profiler 状态，Django 不会代理或二次检查它。
 
 ## 4. 打开页面
 

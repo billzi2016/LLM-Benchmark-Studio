@@ -3,8 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 import socket
 from typing import Any
-from urllib import error as urllib_error
-from urllib import request as urllib_request
 
 from config.celery import app as celery_app
 from apps.datasets.catalog import scan_datasets
@@ -12,7 +10,6 @@ from apps.datasets.languages import load_languages
 from apps.llms.providers import get_provider
 from apps.llms.registry import generation_models, load_model_registry
 from django.db import connection
-from system_profiler import collect_system_snapshot
 
 
 def file_status(path: Path) -> dict[str, Any]:
@@ -112,17 +109,6 @@ def build_provider_statuses(settings: Any) -> list[dict[str, Any]]:
     return providers
 
 
-def check_system_profiler(settings: Any) -> dict[str, Any]:
-    url = f"http://{settings.SYSTEM_PROFILER_HOST}:{settings.SYSTEM_PROFILER_PORT}/health"
-    try:
-        with urllib_request.urlopen(url, timeout=2) as response:  # noqa: S310
-            if response.status >= 400:
-                raise urllib_error.HTTPError(url, response.status, "Profiler health failed", None, None)
-    except Exception as exc:  # noqa: BLE001
-        return error_service("system_profiler", "System Profiler", exc)
-    return ok_service("system_profiler", "System Profiler", f"{settings.SYSTEM_PROFILER_HOST}:{settings.SYSTEM_PROFILER_PORT}")
-
-
 def check_celery_worker() -> dict[str, Any]:
     try:
         inspect = celery_app.control.inspect(timeout=1)
@@ -138,14 +124,12 @@ def build_system_status(settings: Any) -> dict[str, Any]:
     models = generation_models(load_model_registry(settings.LLM_MODEL_NAMES_PATH))
     languages = load_languages(settings.LANGUAGES_PATH)
     datasets = scan_datasets(settings.BENCHMARK_DATASETS_DIR)
-    snapshot = collect_system_snapshot()
     provider_statuses = build_provider_statuses(settings)
     services = [
         ok_service("backend", "Django API", "running"),
         check_database(),
         check_tcp("rabbitmq", "RabbitMQ", settings.RABBITMQ_HOST, settings.RABBITMQ_PORT),
         check_celery_worker(),
-        check_system_profiler(settings),
     ]
     return {
         "service": "django",
@@ -174,7 +158,6 @@ def build_system_status(settings: Any) -> dict[str, Any]:
             "think": settings.LLM_CONTEXT_THINK,
             "no_think": settings.LLM_CONTEXT_NO_THINK,
         },
-        "metrics": snapshot,
         "counts": {
             "models_total": len(models),
             "models_active": sum(1 for model in models if model.get("activate")),
